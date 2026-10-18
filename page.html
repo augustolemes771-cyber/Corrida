@@ -29,6 +29,13 @@ header{display:flex;flex-direction:column;gap:10px}
 h1{font-family:var(--display);font-weight:900;font-size:clamp(44px,13vw,60px);line-height:.9;letter-spacing:.005em;text-transform:uppercase;margin:4px 0 0;text-wrap:balance}
 h1 em{font-style:normal;color:var(--accent)}
 .sub{color:var(--muted);margin:0;font-size:17px}
+.wabtn{display:flex;align-items:center;gap:12px;text-decoration:none;color:#06210f;background:#3ddc84;border-radius:14px;padding:12px 14px;margin-top:4px}
+.wabtn svg{width:26px;height:26px;fill:#06210f;flex:none}
+.wabtn svg.arrow{width:20px;height:20px;fill:none;margin-left:auto}
+.wabtn span{display:flex;flex-direction:column;min-width:0}
+.wabtn b{font-size:17px;font-weight:800}
+.wabtn small{font-size:13px;opacity:.8}
+.wabtn:active{transform:scale(.98)}
 .demo{font-size:13px;color:var(--accent);border:1px dashed var(--accent);border-radius:12px;padding:8px 12px}
 section{display:flex;flex-direction:column;gap:12px}
 h2{font-family:var(--display);font-weight:800;font-size:26px;margin:0;letter-spacing:.02em;text-transform:uppercase}
@@ -108,6 +115,11 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     </div>
     <h1 id="hello">O som é<br><em>seu</em></h1>
     <p class="sub">Escolhe a música, pula, pausa e aumenta o volume. Tá liberado.</p>
+    <a class="wabtn" id="waTop" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C7 3 3 6.6 3 11c0 2.2 1 4.2 2.7 5.6L5 21l4.3-2.3c.9.2 1.8.3 2.7.3 5 0 9-3.6 9-8s-4-8-9-8z"/></svg>
+      <span><b>Me chama no WhatsApp</b><small>Toque aqui pra mandar mensagem</small></span>
+      <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
     <div class="demo" id="demo" hidden>Prévia: as músicas e os dados abaixo são de exemplo.</div>
   </header>
 
@@ -174,10 +186,10 @@ footer{font-size:13px;color:var(--muted);text-align:center}
         </div>
       </fieldset>
       <label class="q" for="nome"><span>Seu nome</span><input type="text" id="nome" maxlength="60" autocomplete="given-name"></label>
-      <label class="check" for="avisar"><input type="checkbox" id="avisar"> <span>Quero ser avisado no WhatsApp quando o app sair</span></label>
-      <label class="q" for="fone" id="foneWrap" hidden><span>Seu WhatsApp</span><input type="tel" id="fone" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="(64) 9 0000-0000"></label>
+      <label class="q" for="fone"><span>Seu WhatsApp</span><input type="tel" id="fone" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="(64) 9 0000-0000" required></label>
+      <label class="check" for="avisar"><input type="checkbox" id="avisar" checked> <span>Pode me avisar quando o app sair</span></label>
       <button class="primary" type="submit" id="send">Enviar</button>
-      <p class="hint">Seu número só será usado para avisar sobre o app. Nada de spam.</p>
+      <p class="hint">Uso seu número só pra falar sobre o app. Nada de spam.</p>
       <div class="msg" id="fbMsg" role="status"></div>
     </form>
     <div class="thanks card" id="thanks" hidden>
@@ -233,6 +245,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     $("igFollow").textContent = "Seguir @"+cfg.instagram;
     $("waNum").textContent = fmtPhone(cfg.whatsapp);
     $("wa").href = "https://wa.me/"+cfg.whatsapp.replace(/\D/g,"");
+    $("waTop").href = "https://wa.me/"+cfg.whatsapp.replace(/\D/g,"")+"?text="+encodeURIComponent("Oi "+cfg.driver+", vim pelo QR da corrida!");
     $("pixKey").textContent = "Chave Pix (celular): "+fmtPhone(cfg.pixKey);
     $("pixSec").hidden = !cfg.pixKey;
   }
@@ -306,14 +319,13 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   }
   toggleOpts("dores", false); toggleOpts("usaria", true);
   function picked(id){ return Array.prototype.filter.call($(id).children,function(b){return b.getAttribute("aria-pressed")==="true"}).map(function(b){return b.dataset.v}); }
-  $("avisar").addEventListener("change", function(){ $("foneWrap").hidden = !this.checked; if(this.checked) $("fone").focus(); });
   try{ if(localStorage.getItem("respondeu")){ $("fb").hidden=true; $("thanks").hidden=false; } }catch(e){}
   $("fb").addEventListener("submit", function(e){
     e.preventDefault();
     var data = { dores:picked("dores"), ideia:$("ideia").value.trim(), usaria:picked("usaria")[0]||"",
-      nome:$("nome").value.trim(), avisar:$("avisar").checked, fone:$("avisar").checked ? $("fone").value.trim() : "" };
+      nome:$("nome").value.trim(), avisar:$("avisar").checked, fone:$("fone").value.trim() };
     if(!data.dores.length && !data.ideia && !data.usaria){ setMsg("fbMsg","Responda pelo menos uma pergunta.","err"); return; }
-    if(data.avisar && data.fone.replace(/\D/g,"").length<10){ setMsg("fbMsg","Coloque o WhatsApp com DDD para ser avisado.","err"); $("fone").focus(); return; }
+    if(data.fone.replace(/\D/g,"").length<10){ setMsg("fbMsg","Coloque seu WhatsApp com DDD.","err"); $("fone").focus(); return; }
     var finish=function(){ try{localStorage.setItem("respondeu","1")}catch(e){} $("fb").hidden=true; $("thanks").hidden=false; };
     if(demo){ finish(); return; }
     $("send").disabled=true; setMsg("fbMsg","Enviando…");

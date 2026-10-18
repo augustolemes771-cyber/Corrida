@@ -132,13 +132,14 @@ export default {
         const r = {
           quando: new Date().toISOString(),
           nome: cut(b.nome, 60),
-          fone: b.avisar ? cut(b.fone, 20) : "",
+          fone: cut(b.fone, 20),
           avisar: !!b.avisar,
           dores: (Array.isArray(b.dores) ? b.dores : []).slice(0, 6).map((d) => cut(d, 30)),
           ideia: cut(b.ideia, 500),
           usaria: cut(b.usaria, 10),
         };
         if (!r.dores.length && !r.ideia && !r.usaria) return json({ error: "Responda pelo menos uma pergunta." }, 400);
+        if (r.fone.replace(/\D/g, "").length < 10) return json({ error: "Coloque seu WhatsApp com DDD." }, 400);
         await env.RESPOSTAS.put("r:" + Date.now() + ":" + Math.random().toString(36).slice(2, 8), JSON.stringify(r));
         return json({ ok: true });
       }
