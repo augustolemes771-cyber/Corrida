@@ -123,6 +123,64 @@ export default {
         return json({ error: "O Spotify não aceitou o pedido. Tente outra música." }, 502);
       }
 
+      if (p === "/api/feedback" && req.method === "POST") {
+        const ip = req.headers.get("cf-connecting-ip") || "x";
+        if (tooMany("f" + ip, 5)) return json({ error: "Você já enviou. Valeu!" }, 429);
+        if (!env.RESPOSTAS) return json({ error: "O questionário ainda não está pronto." }, 503);
+        const b = await req.json().catch(() => ({}));
+        const cut = (v, n) => String(v || "").trim().slice(0, n);
+        const r = {
+          quando: new Date().toISOString(),
+          nome: cut(b.nome, 60),
+          fone: b.avisar ? cut(b.fone, 20) : "",
+          avisar: !!b.avisar,
+          dores: (Array.isArray(b.dores) ? b.dores : []).slice(0, 6).map((d) => cut(d, 30)),
+          ideia: cut(b.ideia, 500),
+          usaria: cut(b.usaria, 10),
+        };
+        if (!r.dores.length && !r.ideia && !r.usaria) return json({ error: "Responda pelo menos uma pergunta." }, 400);
+        await env.RESPOSTAS.put("r:" + Date.now() + ":" + Math.random().toString(36).slice(2, 8), JSON.stringify(r));
+        return json({ ok: true });
+      }
+
+      if (p === "/respostas" || p === "/respostas.csv") {
+        if (url.searchParams.get("senha") !== env.ADMIN_PASSWORD) return new Response("Senha errada.", { status: 403 });
+        if (!env.RESPOSTAS) return new Response("Ligue o KV RESPOSTAS no Cloudflare primeiro.", { status: 503 });
+        const rows = [];
+        let cursor;
+        do {
+          const l = await env.RESPOSTAS.list({ prefix: "r:", cursor });
+          for (const k of l.keys) { const v = await env.RESPOSTAS.get(k.name); if (v) rows.push(JSON.parse(v)); }
+          cursor = l.list_complete ? null : l.cursor;
+        } while (cursor);
+        rows.sort((a, b) => b.quando.localeCompare(a.quando));
+        const when = (q) => new Date(q).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+        if (p === "/respostas.csv") {
+          const q = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+          const csv = ["Data;Nome;WhatsApp;Avisar;Incomoda;Ideia;Usaria"]
+            .concat(rows.map((r) => [when(r.quando), r.nome, r.fone, r.avisar ? "sim" : "não", r.dores.join(", "), r.ideia, r.usaria].map(q).join(";")))
+            .join("\n");
+          return new Response("\ufeff" + csv, { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": "attachment; filename=respostas.csv" } });
+        }
+        const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+        const count = {};
+        rows.forEach((r) => r.dores.forEach((d) => (count[d] = (count[d] || 0) + 1)));
+        const top = Object.entries(count).sort((a, b) => b[1] - a[1]).map(([d, n]) => `<li>${esc(d)}: <b>${n}</b></li>`).join("");
+        const us = { Sim: 0, Talvez: 0, "Não": 0 };
+        rows.forEach((r) => { if (r.usaria in us) us[r.usaria]++; });
+        const cards = rows.map((r) => `<div style="border:1px solid #2a2e48;border-radius:12px;padding:12px;margin:10px 0">
+          <div style="color:#9097b8;font-size:13px">${when(r.quando)}${r.usaria ? " · usaria: " + esc(r.usaria) : ""}</div>
+          <div style="font-weight:600;margin-top:4px">${esc(r.nome || "Sem nome")}${r.fone ? ` · <a style="color:#ffb347" href="https://wa.me/55${esc(r.fone.replace(/\D/g, "").replace(/^55/, ""))}">${esc(r.fone)}</a>` : ""}</div>
+          ${r.dores.length ? `<div style="font-size:14px;margin-top:4px">Incomoda: ${esc(r.dores.join(", "))}</div>` : ""}
+          ${r.ideia ? `<div style="margin-top:6px">“${esc(r.ideia)}”</div>` : ""}</div>`).join("");
+        return html(`<div style="font-family:system-ui;background:#0c0e1a;color:#eef0fa;min-height:100vh;padding:20px 16px"><div style="max-width:560px;margin:0 auto">
+          <h2 style="margin:0 0 6px">Respostas: ${rows.length}</h2>
+          <div style="color:#9097b8">Usaria o app: Sim ${us.Sim} · Talvez ${us.Talvez} · Não ${us["Não"]}</div>
+          ${top ? `<h3>O que mais incomoda</h3><ul>${top}</ul>` : ""}
+          <a style="color:#ffb347" href="/respostas.csv?senha=${encodeURIComponent(url.searchParams.get("senha"))}">Baixar planilha (CSV)</a>
+          ${cards || "<p>Nenhuma resposta ainda.</p>"}</div></div>`);
+      }
+
       // ---- Configuração única (só você usa) ----
       if (p === "/login") {
         if (url.searchParams.get("senha") !== env.ADMIN_PASSWORD) return new Response("Senha errada.", { status: 403 });
