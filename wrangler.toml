@@ -2,6 +2,10 @@ name = "corrida"
 main = "worker.js"
 compatibility_date = "2026-09-01"
 
+# Banco das respostas do questionário (o Cloudflare cria sozinho no deploy)
+[[kv_namespaces]]
+binding = "RESPOSTAS"
+
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
