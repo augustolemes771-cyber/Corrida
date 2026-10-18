@@ -221,7 +221,6 @@ export default {
           scope: SCOPES,
           redirect_uri: url.origin + "/callback",
           state,
-          show_dialog: "true",
         });
         return Response.redirect(a.toString(), 302);
       }
