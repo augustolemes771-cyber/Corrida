@@ -1,0 +1,24 @@
+name = "corrida"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+# ---- Seus dados ----
+[vars]
+SPOTIFY_CLIENT_ID = "b27a49615bcc46edabd0f9c0830a3ded"
+DRIVER_NAME = "Augusto"
+INSTAGRAM = "augusto7cn"
+WHATSAPP = "5564993056133"
+PIX_KEY = "+5564993056133"           # chave Pix = celular
+PIX_NAME = "AUGUSTO L ORDONHES"      # até 25 letras, sem acento
+PIX_CITY = "CALDAS NOVAS"            # até 15 letras, sem acento
+
+# Segredos (NÃO colocar aqui). Rode cada um:
+
+#   npx wrangler secret put SPOTIFY_CLIENT_SECRET
+#   npx wrangler secret put ADMIN_PASSWORD
+#   npx wrangler secret put SPOTIFY_REFRESH_TOKEN   (depois do /login)
