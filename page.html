@@ -103,6 +103,23 @@ footer{font-size:13px;color:var(--muted);text-align:center}
 #qrBox svg{display:block;width:100%;height:auto}
 .qrview p{margin:0;font-size:17px;font-weight:600}
 .qrview[hidden]{display:none}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px}
+footer{display:flex;flex-direction:column;align-items:center;gap:14px}
+.driver{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--muted);font-size:13px;font-weight:600;padding:6px 10px;opacity:.7}
+.driver svg{width:14px;height:14px;fill:currentColor}
+.admin{position:fixed;inset:0;z-index:60;background:rgba(6,7,14,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;
+  padding:calc(40px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.admin[hidden]{display:none}
+.admin-box{width:100%;max-width:420px;background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:16px}
+.admin-box #closeAdmin{width:40px;height:40px;padding:0;border-color:var(--line)}
+.admin-form{display:flex;flex-direction:column;gap:14px}
+input[type=password]{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:13px 14px}
+.status{display:flex;align-items:center;gap:10px;font-weight:600;background:var(--bg);border-radius:12px;padding:12px 14px}
+.status::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--err);flex:none}
+.status.on::before{background:var(--ok)}
+.primary-link{display:block;text-align:center;background:var(--accent);color:var(--ink);border-radius:12px;padding:15px;font-weight:800;font-size:17px;text-decoration:none}
+.ghost-link{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;border:1.5px solid var(--line);border-radius:12px;padding:14px;color:var(--fg);text-decoration:none;font-weight:600;background:transparent}
+.ghost-link b{color:var(--accent)}
 .qrview button{border-color:#0c0e1a;color:#0c0e1a;font-weight:700;padding:10px 22px}
 </style>
 
@@ -206,7 +223,27 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     </div>
   </section>
 
-  <footer>Boa volta pra casa. Cinto colocado, hein?</footer>
+  <footer>Boa volta pra casa. Cinto colocado, hein?
+    <button type="button" class="driver" id="openAdmin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>Área do motorista</button>
+  </footer>
+</div>
+
+<div class="admin" id="adminView" hidden role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+  <div class="admin-box">
+    <div class="row"><h2 id="adminTitle">Área do motorista</h2><button type="button" id="closeAdmin" aria-label="Fechar">✕</button></div>
+    <form id="loginForm" class="admin-form">
+      <label class="q" for="senha"><span>Senha</span><input type="password" id="senha" autocomplete="current-password" required></label>
+      <button class="primary" type="submit">Entrar</button>
+      <div class="msg" id="adminMsg" role="status"></div>
+    </form>
+    <div id="adminPanel" class="admin-form" hidden>
+      <div class="status" id="spStatus"></div>
+      <a class="primary-link" id="connectSp" href="#">Conectar Spotify</a>
+      <p class="hint">Abra o Spotify e dê play numa música antes. Depois é só tocar em Concordo.</p>
+      <a class="ghost-link" id="seeAnswers" href="#">Ver respostas do questionário <b id="nResp"></b></a>
+      <button type="button" class="ghost-link" id="logout">Sair deste aparelho</button>
+    </div>
+  </div>
 </div>
 
 <div class="qrview" id="qrView" hidden role="dialog" aria-modal="true" aria-labelledby="qrTitle">
@@ -347,7 +384,42 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   function closeQr(){ $("qrView").hidden=true; try{ if(lock){ lock.release(); lock=null; } }catch(e){} $("showQr").focus(); }
   $("closeQr").addEventListener("click", closeQr);
   $("qrView").addEventListener("click", function(e){ if(e.target===this) closeQr(); });
-  document.addEventListener("keydown", function(e){ if(e.key==="Escape" && !$("qrView").hidden) closeQr(); });
+  document.addEventListener("keydown", function(e){ if(e.key!=="Escape") return; if(!$("qrView").hidden) closeQr(); if(!$("adminView").hidden) closeAdmin(); });
+
+  // ---- Área do motorista
+  var pass="";
+  try{ pass=localStorage.getItem("senhaMotorista")||""; }catch(e){}
+  $("openAdmin").addEventListener("click", function(){
+    $("adminView").hidden=false;
+    if(pass) enter(pass); else { $("loginForm").hidden=false; $("adminPanel").hidden=true; $("senha").focus(); }
+  });
+  function closeAdmin(){ $("adminView").hidden=true; $("openAdmin").focus(); }
+  $("closeAdmin").addEventListener("click", closeAdmin);
+  $("adminView").addEventListener("click", function(e){ if(e.target===this) closeAdmin(); });
+  $("loginForm").addEventListener("submit", function(e){ e.preventDefault(); var v=$("senha").value; if(v) enter(v); });
+  function enter(v){
+    setMsg("adminMsg","Entrando…");
+    if(demo){ show({conectado:false,respostas:0},v); return; }
+    fetch("/api/admin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({senha:v})})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j}})})
+      .then(function(x){
+        if(x.ok) show(x.j,v);
+        else { pass=""; try{localStorage.removeItem("senhaMotorista")}catch(e){} $("loginForm").hidden=false; $("adminPanel").hidden=true; setMsg("adminMsg",x.j.error||"Não deu para entrar.","err"); }
+      }).catch(function(){ setMsg("adminMsg","Sem conexão. Tente de novo.","err"); });
+  }
+  function show(j,v){
+    pass=v; try{localStorage.setItem("senhaMotorista",v)}catch(e){}
+    setMsg("adminMsg",""); $("senha").value="";
+    $("loginForm").hidden=true; $("adminPanel").hidden=false;
+    var st=$("spStatus");
+    st.className="status"+(j.conectado?" on":"");
+    st.textContent = j.conectado ? ("Spotify conectado"+(j.tocando?" · tocando "+j.tocando:"")) : "Spotify desconectado";
+    $("connectSp").textContent = j.conectado ? "Reconectar Spotify" : "Conectar Spotify";
+    $("connectSp").href = "/login?senha="+encodeURIComponent(v);
+    $("seeAnswers").href = "/respostas?senha="+encodeURIComponent(v);
+    $("nResp").textContent = j.respostas!=null ? j.respostas : "";
+  }
+  $("logout").addEventListener("click", function(){ pass=""; try{localStorage.removeItem("senhaMotorista")}catch(e){} $("adminPanel").hidden=true; $("loginForm").hidden=false; $("senha").focus(); });
 
   // ---- Pix (BR Code estático)
   function tlv(id,v){ return id+String(v.length).padStart(2,"0")+v; }

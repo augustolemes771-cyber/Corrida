@@ -18,19 +18,27 @@ const html = (body) =>
     { headers: { "content-type": "text/html; charset=utf-8" } }
   );
 
+async function refreshToken(env) {
+  const saved = env.RESPOSTAS ? await env.RESPOSTAS.get("cfg:refresh") : null;
+  return saved || env.SPOTIFY_REFRESH_TOKEN || null;
+}
+
 async function accessToken(env) {
   if (cache.token && Date.now() < cache.exp) return cache.token;
+  const rt = await refreshToken(env);
+  if (!rt) throw new Error("Spotify não conectado");
   const r = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
       Authorization: "Basic " + btoa(env.SPOTIFY_CLIENT_ID + ":" + env.SPOTIFY_CLIENT_SECRET),
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: env.SPOTIFY_REFRESH_TOKEN }),
+    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: rt }),
   });
   const j = await r.json();
   if (!r.ok) throw new Error("Falha ao renovar token do Spotify: " + JSON.stringify(j));
   cache = { token: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+  if (j.refresh_token && env.RESPOSTAS) await env.RESPOSTAS.put("cfg:refresh", j.refresh_token);
   return cache.token;
 }
 
@@ -182,22 +190,54 @@ export default {
           ${cards || "<p>Nenhuma resposta ainda.</p>"}</div></div>`);
       }
 
-      // ---- Configuração única (só você usa) ----
+      // ---- Área do motorista ----
+      if (p === "/api/admin" && req.method === "POST") {
+        const ip = req.headers.get("cf-connecting-ip") || "x";
+        if (tooMany("a" + ip, 10)) return json({ error: "Muitas tentativas. Espere alguns minutos." }, 429);
+        const { senha } = await req.json().catch(() => ({}));
+        if (!env.ADMIN_PASSWORD || senha !== env.ADMIN_PASSWORD) return json({ error: "Senha errada." }, 403);
+        let conectado = false, tocando = "";
+        try {
+          const r = await spotify(env, "/me/player?market=BR");
+          conectado = r.ok || r.status === 204;
+          if (r.status === 200) { const j = await r.json(); if (j.item) tocando = j.item.name; }
+        } catch (e) { conectado = false; }
+        let respostas = 0;
+        if (env.RESPOSTAS) {
+          let cursor;
+          do { const l = await env.RESPOSTAS.list({ prefix: "r:", cursor }); respostas += l.keys.length; cursor = l.list_complete ? null : l.cursor; } while (cursor);
+        }
+        return json({ ok: true, conectado, tocando, respostas, banco: !!env.RESPOSTAS });
+      }
+
       if (p === "/login") {
         if (url.searchParams.get("senha") !== env.ADMIN_PASSWORD) return new Response("Senha errada.", { status: 403 });
+        const state = crypto.randomUUID();
+        if (env.RESPOSTAS) await env.RESPOSTAS.put("state:" + state, "1", { expirationTtl: 600 });
         const a = new URL("https://accounts.spotify.com/authorize");
         a.search = new URLSearchParams({
           response_type: "code",
           client_id: env.SPOTIFY_CLIENT_ID,
           scope: SCOPES,
           redirect_uri: url.origin + "/callback",
+          state,
+          show_dialog: "true",
         });
         return Response.redirect(a.toString(), 302);
       }
 
       if (p === "/callback") {
+        const page = (title, text) => html(`<div style="font-family:system-ui;background:#0c0e1a;color:#eef0fa;min-height:100vh;padding:40px 20px;text-align:center">
+          <h2 style="margin:0 0 10px">${title}</h2><p style="color:#9097b8">${text}</p>
+          <a href="/" style="display:inline-block;margin-top:16px;background:#ffb347;color:#1b1206;border-radius:12px;padding:14px 24px;font-weight:800;text-decoration:none">Voltar pro app</a></div>`);
+        if (url.searchParams.get("error")) return page("Conexão cancelada", "Você não autorizou no Spotify. Tente de novo pela área do motorista.");
         const code = url.searchParams.get("code");
-        if (!code) return new Response("Sem código do Spotify.", { status: 400 });
+        const state = url.searchParams.get("state") || "";
+        if (!code) return page("Algo deu errado", "O Spotify não mandou o código. Tente de novo.");
+        if (env.RESPOSTAS) {
+          if (!(await env.RESPOSTAS.get("state:" + state))) return page("Link expirado", "Abra a área do motorista e toque em Conectar Spotify de novo.");
+          await env.RESPOSTAS.delete("state:" + state);
+        }
         const r = await fetch("https://accounts.spotify.com/api/token", {
           method: "POST",
           headers: {
@@ -207,14 +247,12 @@ export default {
           body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: url.origin + "/callback" }),
         });
         const j = await r.json();
-        if (!r.ok) return new Response("Erro: " + JSON.stringify(j), { status: 400 });
-        return html(
-          `<div style="font-family:system-ui;padding:20px;max-width:640px">` +
-            `<h2>Pronto! Copie o refresh token abaixo</h2>` +
-            `<p>No Cloudflare: Workers → corrida → Configurações → Variáveis e segredos → Adicionar → tipo Segredo, nome <b>SPOTIFY_REFRESH_TOKEN</b>, e cole isto:</p>` +
-            `<textarea style="width:100%;height:140px">${j.refresh_token}</textarea>` +
-            `<p>Não mostre esse código pra ninguém.</p></div>`
-        );
+        if (!r.ok) return page("Algo deu errado", "O Spotify recusou a conexão. Tente de novo em instantes.");
+        if (!env.RESPOSTAS)
+          return html(`<div style="font-family:system-ui;padding:20px"><h2>Salve este código como segredo SPOTIFY_REFRESH_TOKEN no Cloudflare</h2><textarea style="width:100%;height:140px">${j.refresh_token}</textarea></div>`);
+        await env.RESPOSTAS.put("cfg:refresh", j.refresh_token);
+        cache = { token: j.access_token, exp: Date.now() + (j.expires_in - 60) * 1000 };
+        return page("Spotify conectado ✓", "Pronto! Os passageiros já podem controlar a música.");
       }
 
       return new Response("Não encontrado", { status: 404 });
