@@ -128,8 +128,8 @@ async function musicState(env, userId, p) {
 async function renderProfile(env, user, url) {
   const p = await getProfile(env, user.id);
   const data = publicProfile(user, p, await musicState(env, user.id, p));
-  const title = `${data.name} · Corrida`;
-  const desc = data.modules.includes("musica") ? `Escolha a música da corrida com ${data.name}.` : `Perfil de ${data.name} na Corrida.`;
+  const title = `${data.name} · Driver Hub`;
+  const desc = data.modules.includes("musica") ? `Escolha a música da corrida com ${data.name}.` : `Perfil de ${data.name} no Driver Hub.`;
   const page = PERFIL
     .replace("<!--HEAD-->",
       `<title>${esc(title)}</title><meta name="description" content="${esc(desc)}">` +
