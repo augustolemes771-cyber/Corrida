@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Driver Hub">
+<title>Driver Hub · Painel do motorista</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Figtree:wght@400;500;600;700;800&family=Fredoka:wght@700&family=Bodoni+Moda:opsz,wght@6..96,800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+<style>
+/* Painel do motorista: usado no celular, no carro parado, muitas vezes de madrugada. Escuro, alvos grandes. */
+:root{
+  --bg:#0c0e1a; --panel:#151829; --panel2:#1b1f35; --line:#2a2f4a; --fg:#eef0fa; --muted:#9097b8;
+  --accent:#ffb347; --ink:#1b1206; --ok:#5fd39a; --err:#ff8a8a; --wa:#3ddc84; --wa-ink:#06210f;
+  --display:"Big Shoulders Display","Arial Narrow",sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --nav:64px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
+::selection{background:var(--accent);color:var(--ink)}
+[hidden]{display:none!important}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+h1,h2,h3{margin:0}
+h1{font-family:var(--display);font-weight:900;font-size:clamp(44px,13vw,60px);line-height:.88;text-transform:uppercase;text-wrap:balance}
+h1 em{font-style:normal;color:var(--accent)}
+h2{font-family:var(--display);font-weight:800;font-size:30px;line-height:1;text-transform:uppercase;letter-spacing:.02em}
+h3{font-size:17px;font-weight:800}
+p{margin:0}
+.muted{color:var(--muted)}
+.hint{font-size:14px;color:var(--muted)}
+.msg{font-size:14px;min-height:20px}
+.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;align-items:center;gap:12px}
+.between{justify-content:space-between}
+
+/* Campos */
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:15px}
+label.f small{font-weight:500;color:var(--muted);font-size:13px}
+input,textarea,select{width:100%;font:inherit;font-weight:500;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:13px 14px}
+input::placeholder,textarea::placeholder{color:var(--muted);opacity:.8}
+textarea{resize:vertical;min-height:88px}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 20px) 55%,calc(100% - 14px) 55%;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);outline:none}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Botões */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;border:1.5px solid var(--line);background:var(--panel2);border-radius:12px;padding:12px 16px;font-weight:700;min-height:48px}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.55;cursor:default;transform:none}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--ink);font-weight:800}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:var(--wa-ink);font-weight:800}
+.btn.ghost{background:transparent}
+.btn.danger{background:transparent;color:var(--err);border-color:color-mix(in srgb,var(--err) 40%,var(--line))}
+.btn.block{width:100%}
+.btn.sm{min-height:38px;padding:8px 12px;font-size:14px;border-radius:10px}
+.linkbtn{border:0;background:none;padding:0;color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+
+/* Blocos */
+.block{background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.block>header{display:flex;flex-direction:column;gap:4px}
+.list{display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel)}
+.item{display:flex;align-items:center;gap:12px;padding:14px;text-decoration:none;border-bottom:1px solid var(--line);background:transparent;border-left:0;border-right:0;border-top:0;text-align:left;width:100%}
+.item:last-child{border-bottom:0}
+.item .t{flex:1;min-width:0}
+.item .t b{display:block;font-weight:700}
+.item .t small{display:block;color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none}
+.dot.on{background:var(--ok)}.dot.warn{background:var(--accent)}.dot.off{background:var(--err)}
+.count{font-family:var(--display);font-weight:900;font-size:26px;color:var(--accent);font-variant-numeric:tabular-nums}
+
+/* ---------- Entrar / Criar conta ---------- */
+.auth{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;gap:26px;max-width:440px;margin:0 auto;
+  padding:calc(28px + env(safe-area-inset-top,0px)) max(20px,env(safe-area-inset-right,0px)) calc(28px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px));position:relative}
+.auth::before{content:"";position:fixed;inset:0;background:url(/lobo.jpg) right -40px top -10vh/auto 100% no-repeat;opacity:.22;z-index:-1}
+.auth::after{content:"";position:fixed;inset:0;background:linear-gradient(90deg,var(--bg) 10%,transparent 85%),linear-gradient(180deg,transparent 40%,var(--bg) 90%);z-index:-1}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:900;font-size:24px;letter-spacing:.06em;text-transform:uppercase}
+.brand svg{width:30px;height:30px;color:var(--accent)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1.5px solid var(--line);border-radius:14px;background:var(--panel)}
+.seg button{border:0;background:transparent;border-radius:10px;padding:11px 0;font-weight:800;color:var(--muted)}
+.seg button[aria-selected=true]{background:var(--accent);color:var(--ink)}
+.prefix{position:relative}
+.prefix span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700}
+.prefix input{padding-left:32px}
+
+/* ---------- App ---------- */
+.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;background:color-mix(in srgb,var(--bg) 94%,transparent);
+  -webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line);
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+.ava{width:40px;height:40px;border-radius:50%;object-fit:cover;background:var(--panel2);border:2px solid var(--accent);flex:none;display:grid;place-items:center;
+  font-family:var(--display);font-weight:900;font-size:20px;color:var(--accent)}
+.top .id{flex:1;min-width:0}
+.top b{display:block;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top small{display:block;color:var(--muted);font-size:13px}
+main{max-width:560px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right,0px)) calc(var(--nav) + 110px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:18px}
+.view{display:flex;flex-direction:column;gap:18px}
+.view>h2{margin-top:4px}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);background:var(--panel);border-top:1px solid var(--line);
+  padding:0 max(6px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(6px,env(safe-area-inset-left,0px))}
+nav.tabs button{position:relative;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--nav);color:var(--muted);font-size:12px;font-weight:700}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button[aria-current=page]{color:var(--accent)}
+nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--ink);font-size:11px;font-weight:800;display:grid;place-items:center}
+
+/* Barra de salvar */
+.savebar{position:fixed;left:0;right:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:center;gap:12px;
+  padding:12px max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));background:var(--panel2);border-top:1px solid var(--line);
+  transform:translateY(110%);transition:transform .28s cubic-bezier(.2,.9,.3,1)}
+.savebar.show{transform:none}
+.savebar span{flex:1;font-weight:700;font-size:15px}
+.savebar .btn{min-height:44px}
+@media (prefers-reduced-motion:reduce){.savebar{transition:none}}
+
+/* Início: QR */
+.share{display:grid;grid-template-columns:132px 1fr;gap:16px;align-items:center}
+.qr{background:#fff;border-radius:14px;padding:8px;aspect-ratio:1}
+.qr svg{display:block;width:100%;height:100%}
+.share .url{font-weight:800;font-size:17px;overflow-wrap:anywhere}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+details.howto{border-top:1px solid var(--line);padding-top:12px}
+details.howto summary{cursor:pointer;font-weight:700;list-style:none;display:flex;align-items:center;gap:8px}
+details.howto summary::-webkit-details-marker{display:none}
+details.howto summary::after{content:"";margin-left:auto;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .2s}
+details.howto[open] summary::after{transform:rotate(-135deg)}
+details.howto ol{margin:10px 0 0;padding-left:20px;color:var(--muted);font-size:15px;display:flex;flex-direction:column;gap:6px}
+details.howto ol b{color:var(--fg)}
+
+/* Perfil: foto */
+.photo{display:flex;align-items:center;gap:16px}
+.photo .ava{width:84px;height:84px;font-size:38px;border-width:3px}
+
+/* Página: temas e módulos */
+.swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sw{border:2px solid var(--line);border-radius:14px;padding:0;overflow:hidden;background:none;text-align:left}
+.sw[aria-checked=true]{border-color:var(--fg)}
+.sw .pv{display:flex;flex-direction:column;gap:5px;padding:12px 10px;height:74px}
+.sw .pv i{display:block;height:7px;border-radius:4px}
+.sw .pv i:first-child{width:70%;height:12px}
+.sw .pv i:nth-child(2){width:45%}
+.sw span{display:block;font-size:13px;font-weight:700;padding:7px 10px;background:var(--panel2);color:var(--fg)}
+.fonts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fonts button{border:2px solid var(--line);border-radius:14px;background:var(--bg);padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.fonts button[aria-checked=true]{border-color:var(--accent)}
+.fonts b{font-size:26px;line-height:1.1}
+.fonts small{font-size:12px;color:var(--muted);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1.5px solid var(--line);background:var(--bg);border-radius:999px;padding:9px 14px;font-weight:600;font-size:15px}
+.chips button[aria-pressed=true],.chips button[aria-checked=true]{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+.color{display:flex;align-items:center;gap:10px}
+.color input[type=color]{width:52px;height:44px;padding:4px;border-radius:10px;cursor:pointer}
+.mods{display:flex;flex-direction:column;gap:8px}
+.mod{border:1.5px solid var(--line);border-radius:14px;background:var(--bg)}
+.mod .head{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px}
+.mod .head .t{flex:1;min-width:0}
+.mod .head b{display:block;font-weight:800}
+.mod .head small{display:block;color:var(--muted);font-size:13px}
+.mod .body{border-top:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px}
+.mv{width:36px;height:36px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel2);display:grid;place-items:center;padding:0}
+.mv:disabled{opacity:.35}
+.mv svg{width:18px;height:18px}
+.switch{position:relative;width:52px;height:32px;border-radius:16px;border:0;background:var(--line);padding:0;flex:none;transition:background .2s}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:var(--fg);transition:transform .2s cubic-bezier(.2,.9,.3,1)}
+.switch[aria-checked=true]{background:var(--ok)}
+.switch[aria-checked=true]::after{transform:translateX(20px)}
+.linkrow{display:grid;grid-template-columns:1fr 1.4fr 40px;gap:8px}
+.linkrow .mv{width:40px;height:48px}
+
+/* Música */
+.status{display:flex;align-items:center;gap:10px;font-weight:700;background:var(--bg);border-radius:12px;padding:12px 14px}
+.steps{margin:0;padding-left:20px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.steps b{color:var(--fg)}
+.note{border:1.5px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:12px;padding:12px 14px;font-size:14px;color:var(--fg);background:color-mix(in srgb,var(--accent) 8%,var(--panel))}
+.req{display:flex;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.req:last-child{border-bottom:0}
+.req img,.req .art{width:52px;height:52px;border-radius:10px;object-fit:cover;background:var(--line);flex:none}
+.req .t{flex:1;min-width:0}
+.req .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.req .t small{display:block;color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.req .acts{display:flex;flex-direction:column;gap:6px;flex:none}
+.req.done{opacity:.45}
+.empty{padding:22px 16px;text-align:center;color:var(--muted)}
+
+/* Respostas / admin */
+.ans{padding:14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.ans:last-child{border-bottom:0}
+.ans small{color:var(--muted);font-size:13px}
+.ans a{color:var(--accent)}
+.slot{display:flex;flex-direction:column;gap:10px;padding:14px;border-bottom:1px solid var(--line)}
+.slot:last-child{border-bottom:0}
+.meter{display:flex;gap:4px}
+.meter i{flex:1;height:8px;border-radius:4px;background:var(--line)}
+.meter i.on{background:var(--accent)}
+.tagline{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;border-radius:6px;padding:3px 8px;background:var(--panel2);color:var(--muted)}
+.tagline.warn{color:var(--accent)}.tagline.ok{color:var(--ok)}
+
+/* QR em tela cheia */
+.qrfull{position:fixed;inset:0;z-index:60;background:#fff;color:#0c0e1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;
+  padding:calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))}
+.qrfull h3{font-family:var(--display);font-weight:900;font-size:clamp(38px,11vw,56px);line-height:.92;text-transform:uppercase}
+.qrfull h3 em{font-style:normal;color:#b45f00}
+.qrfull .box{width:min(78vw,58vh,420px)}
+.qrfull .box svg{display:block;width:100%;height:auto}
+.qrfull button{border:2px solid #0c0e1a;background:#fff;color:#0c0e1a;border-radius:999px;font-weight:800;padding:11px 26px}
+
+.toast{position:fixed;left:50%;bottom:calc(var(--nav) + 20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);opacity:0;z-index:70;background:var(--fg);color:var(--bg);
+  font-weight:700;border-radius:12px;padding:12px 18px;pointer-events:none;transition:opacity .2s,transform .25s cubic-bezier(.2,.9,.3,1);max-width:calc(100vw - 32px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.loading{min-height:100vh;display:grid;place-items:center;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">Carregando…</div>
+
+<!-- ================= Entrar / Criar conta ================= -->
+<div class="auth" id="auth" hidden>
+  <div class="brand"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v6.5M4.2 16.5l5.6-3.3M19.8 16.5l-5.6-3.3"/></svg>Driver Hub</div>
+  <div class="stack" style="gap:10px">
+    <h1>Seu carro,<br><em>seu perfil</em></h1>
+    <p class="muted" style="font-size:17px">O passageiro escaneia, escolhe a música, manda Pix e te segue. Você monta tudo por aqui.</p>
+  </div>
+  <div class="seg" role="tablist" aria-label="Entrar ou criar conta">
+    <button type="button" role="tab" id="segIn" aria-selected="true">Entrar</button>
+    <button type="button" role="tab" id="segUp" aria-selected="false">Criar conta</button>
+  </div>
+  <form id="formIn" class="stack" novalidate>
+    <label class="f">Usuário<div class="prefix"><span>@</span><input id="inUser" autocomplete="username" autocapitalize="none" spellcheck="false" required></div></label>
+    <label class="f">Senha<input id="inPass" type="password" autocomplete="current-password" required></label>
+    <button class="btn primary block" type="submit">Entrar</button>
+    <div class="msg" id="inMsg" role="status"></div>
+  </form>
+  <form id="formUp" class="stack" novalidate hidden>
+    <label class="f">Seu nome<input id="upName" autocomplete="name" maxlength="40" required></label>
+    <label class="f">Usuário <small>Vira o endereço do seu perfil: <span id="upPreview">…/seunome</span></small>
+      <div class="prefix"><span>@</span><input id="upUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required></div></label>
+    <label class="f">WhatsApp <small>Com DDD. Os passageiros vão poder te chamar.</small><input id="upWa" type="tel" inputmode="tel" autocomplete="tel" placeholder="(64) 9 0000-0000" required></label>
+    <label class="f">Senha <small>Pelo menos 6 caracteres.</small><input id="upPass" type="password" autocomplete="new-password" required></label>
+    <button class="btn primary block" type="submit">Criar meu perfil</button>
+    <div class="msg" id="upMsg" role="status"></div>
+  </form>
+</div>
+
+<!-- ================= App ================= -->
+<div id="app" hidden>
+  <header class="top">
+    <div class="ava" id="topAva" aria-hidden="true"></div>
+    <div class="id"><b id="topName"></b><small id="topUser"></small></div>
+    <a class="btn sm" id="seeProfile" href="#" target="_blank" rel="noopener">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Ver perfil</a>
+  </header>
+
+  <main>
+    <!-- Início -->
+    <section class="view" id="v-inicio" aria-labelledby="h-inicio">
+      <h2 id="h-inicio">Mostra pro passageiro</h2>
+      <div class="block">
+        <div class="share">
+          <div class="qr" id="qrSmall" aria-label="QR code do seu perfil" role="img"></div>
+          <div class="stack" style="gap:8px">
+            <span class="hint">Seu perfil</span>
+            <span class="url" id="myUrl"></span>
+            <button class="linkbtn" type="button" id="copyUrl" style="align-self:flex-start">Copiar link</button>
+          </div>
+        </div>
+        <div class="grid2">
+          <button class="btn primary" type="button" id="qrBig"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Tela cheia</button>
+          <button class="btn" type="button" id="shareBtn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>Compartilhar</button>
+        </div>
+        <details class="howto" id="nfcBox">
+          <summary><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8.5a6 6 0 0 1 0 7M9.5 6a10 10 0 0 1 0 12M13 4a14 14 0 0 1 0 16"/></svg>Etiqueta NFC: o passageiro só encosta o celular</summary>
+          <div class="stack" style="margin-top:12px">
+            <button class="btn" type="button" id="nfcWrite" hidden>Gravar meu link na etiqueta</button>
+            <div class="msg" id="nfcMsg" role="status"></div>
+            <ol id="nfcSteps">
+              <li>Compre adesivos <b>NFC NTAG213 ou NTAG215</b> (Mercado Livre ou Shopee).</li>
+              <li>Baixe o app grátis <b>NFC Tools</b>.</li>
+              <li>Toque em <b>Escrever</b>, <b>Adicionar registro</b>, <b>URL</b> e cole o seu link.</li>
+              <li>Toque em <b>Escrever</b> e encoste o celular no adesivo.</li>
+              <li>Cole o adesivo perto do QR, com um aviso: “ou encoste o celular aqui”.</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+
+      <div class="list" id="statusList"></div>
+    </section>
+
+    <!-- Perfil -->
+    <section class="view" id="v-perfil" aria-labelledby="h-perfil" hidden>
+      <h2 id="h-perfil">Seus dados</h2>
+      <div class="block">
+        <div class="photo">
+          <div class="ava" id="photoAva" aria-hidden="true"></div>
+          <div class="stack" style="gap:8px">
+            <label class="btn sm" for="avatarFile" style="cursor:pointer">Trocar foto</label>
+            <input type="file" id="avatarFile" accept="image/*" hidden>
+            <button class="linkbtn" type="button" id="avatarDel" hidden style="align-self:flex-start;color:var(--muted)">Tirar foto</button>
+          </div>
+        </div>
+        <label class="f">Nome<input data-k="name" maxlength="40"></label>
+        <div class="pair">
+          <label class="f">Cidade<input data-k="city" maxlength="40"></label>
+          <label class="f">Dirige desde<input data-k="since" inputmode="numeric" maxlength="4" placeholder="2020"></label>
+        </div>
+        <label class="f">Carro <small>Modelo e cor. Sem placa.</small><input data-k="car" maxlength="60" placeholder="Onix prata"></label>
+        <label class="f">Sobre você<textarea data-k="bio" maxlength="280" placeholder="Rodo de madrugada. Pode escolher a música à vontade."></textarea></label>
+        <div class="stack" style="gap:8px"><b>No carro tem</b><div class="chips" id="tagChips"></div></div>
+      </div>
+
+      <h2>Contato</h2>
+      <div class="block">
+        <label class="f">WhatsApp <small>Com DDD.</small><input data-k="whatsapp" type="tel" inputmode="tel" placeholder="(64) 9 0000-0000"></label>
+        <label class="f">Mensagem pronta <small>Aparece escrita quando o passageiro toca no botão do WhatsApp.</small><input data-k="waMsg" maxlength="120"></label>
+        <label class="f">Instagram<div class="prefix"><span>@</span><input data-k="instagram" autocapitalize="none" spellcheck="false" maxlength="30"></div></label>
+      </div>
+
+      <h2>Pix</h2>
+      <div class="block">
+        <div class="pair">
+          <label class="f">Tipo de chave<select id="pixType"><option value="celular">Celular</option><option value="cpf">CPF</option><option value="email">E-mail</option><option value="aleatoria">Aleatória</option></select></label>
+          <label class="f">Chave<input id="pixKey" autocapitalize="none" spellcheck="false"></label>
+        </div>
+        <label class="f">Nome no Pix <small>Como aparece no banco, até 25 letras.</small><input data-k="pixName" maxlength="25"></label>
+        <label class="f">Cidade no Pix<input data-k="pixCity" maxlength="15"></label>
+        <p class="hint">Pra aparecer no seu perfil, ligue o bloco Pix na aba Página.</p>
+      </div>
+    </section>
+
+    <!-- Página -->
+    <section class="view" id="v-pagina" aria-labelledby="h-pagina" hidden>
+      <h2 id="h-pagina">O que aparece</h2>
+      <p class="hint" style="margin-top:-8px">Ligue, desligue e mude a ordem. O de cima aparece primeiro.</p>
+      <div class="mods" id="mods"></div>
+
+      <h2>Cara da página</h2>
+      <div class="block">
+        <div class="stack" style="gap:8px"><b>Tema</b><div class="swatches" id="themes" role="radiogroup" aria-label="Tema"></div></div>
+        <div class="stack" style="gap:8px"><b>Cor de destaque</b>
+          <div class="color"><input type="color" id="accent" aria-label="Cor de destaque"><button class="linkbtn" type="button" id="accentReset">Usar a cor do tema</button></div></div>
+        <div class="stack" style="gap:8px"><b>Letra dos títulos</b><div class="fonts" id="fonts" role="radiogroup" aria-label="Letra dos títulos"></div></div>
+        <div class="stack" style="gap:8px"><b>Fundo</b>
+          <div class="chips" id="bgs" role="radiogroup" aria-label="Fundo"></div>
+          <input type="file" id="bgFile" accept="image/*" hidden>
+          <p class="hint" id="bgHint">A foto fica apagada atrás do texto, sem atrapalhar a leitura.</p>
+        </div>
+        <label class="f">Título <small>Coloque *asteriscos* na palavra que vai ficar colorida.</small><input id="headline" maxlength="40"></label>
+        <label class="f">Frase abaixo do título<input id="sub" maxlength="90"></label>
+      </div>
+    </section>
+
+    <!-- Música -->
+    <section class="view" id="v-musica" aria-labelledby="h-musica" hidden>
+      <h2 id="h-musica">Spotify</h2>
+      <div class="block" id="spCard"></div>
+
+      <div class="row between"><h2>Pedidos</h2><button class="linkbtn" type="button" id="clearReq">Limpar tudo</button></div>
+      <p class="hint" style="margin-top:-8px" id="reqHint"></p>
+      <div class="list" id="reqList"></div>
+    </section>
+
+    <!-- Mais -->
+    <section class="view" id="v-mais" aria-labelledby="h-mais" hidden>
+      <div id="adminArea" hidden class="view"></div>
+
+      <h2 id="h-mais">Respostas</h2>
+      <div class="row between"><span class="hint" id="ansInfo"></span><a class="linkbtn" id="ansCsv" href="/respostas.csv">Baixar planilha</a></div>
+      <div class="list" id="ansList"></div>
+
+      <h2>Conta</h2>
+      <div class="block">
+        <h3>Trocar senha</h3>
+        <form id="passForm" class="stack" novalidate>
+          <label class="f">Senha atual<input id="passOld" type="password" autocomplete="current-password"></label>
+          <label class="f">Nova senha<input id="passNew" type="password" autocomplete="new-password"></label>
+          <button class="btn" type="submit">Salvar nova senha</button>
+          <div class="msg" id="passMsg" role="status"></div>
+        </form>
+      </div>
+      <button class="btn danger block" type="button" id="logout">Sair da conta</button>
+    </section>
+  </main>
+
+  <div class="savebar" id="savebar" role="region" aria-label="Alterações não salvas">
+    <span>Alterações não salvas</span>
+    <button class="btn ghost" type="button" id="discard">Desfazer</button>
+    <button class="btn primary" type="button" id="save">Salvar</button>
+  </div>
+
+  <nav class="tabs" aria-label="Seções do painel">
+    <button type="button" data-v="inicio" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 20h.01M20 14v.01M14 20h.01"/></svg>Início</button>
+    <button type="button" data-v="perfil"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</button>
+    <button type="button" data-v="pagina"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-1.3-1-1.6-1-2.7 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.3 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>Página</button>
+    <button type="button" data-v="musica"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Música<span class="badge" id="reqBadge" hidden></span></button>
+    <button type="button" data-v="mais"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Mais</button>
+  </nav>
+</div>
+
+<div class="qrfull" id="qrFull" hidden role="dialog" aria-modal="true" aria-labelledby="qrFullTitle">
+  <h3 id="qrFullTitle">Escaneia e <em>escolhe a música</em></h3>
+  <div class="box" id="qrFullBox"></div>
+  <button type="button" id="qrClose">Fechar</button>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var S = { me:null, saved:null, draft:null, tags:[], view:"inicio" };
+  var THEMES = {
+    noite:["Noite","#0c0e1a","#151829","#ffb347","#eef0fa"], grafite:["Grafite","#111214","#1b1d21","#e4ff5c","#f2f2ef"],
+    floresta:["Floresta","#0a1410","#13221b","#8be28f","#edf5ef"], vinho:["Vinho","#170b11","#24131b","#ff6b86","#f8eef2"],
+    oceano:["Oceano","#06141a","#0e2029","#3fd6ea","#e9f6fa"], claro:["Claro","#f4f2ec","#ffffff","#d9480f","#18171c"]
+  };
+  var FONTS = { poster:["Pôster",'"Big Shoulders Display"',"900","AaZ"], redonda:["Redonda",'"Fredoka"',"700","AaZ"], classica:["Clássica",'"Bodoni Moda"',"800","AaZ"] };
+  var BGS = { nenhum:"Sem foto", lobo:"Lobo", foto:"Minha foto" };
+  var MODS = {
+    whatsapp:["Botão do WhatsApp","Faixa verde no topo pra te chamar"],
+    musica:["Música","Passageiro escolhe ou pede a música"],
+    pix:["Pix","Gorjeta com valor pronto pra copiar"],
+    instagram:["Instagram","Botão pra te seguir"],
+    links:["Links","Até 6 links seus (loja, cardápio, site)"],
+    pesquisa:["Questionário","Pergunta o que o passageiro quer num app de corrida"]
+  };
+  var SERVICES = { spotify:"Spotify", ytmusic:"YouTube Music", apple:"Apple Music", deezer:"Deezer" };
+
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]}); }
+  function setMsg(id,t,k){ var m=$(id); m.textContent=t; m.className="msg "+(k||""); }
+  var toastT; function toast(t){ var el=$("toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(function(){ el.classList.remove("show"); },2400); }
+  function call(method,url,data){
+    return fetch(url,{method:method,headers:data?{"Content-Type":"application/json"}:{},body:data?JSON.stringify(data):undefined,credentials:"same-origin"})
+      .then(function(r){ return r.json().catch(function(){return {}}).then(function(j){ if(r.status===401 && S.me){ location.reload(); } return {ok:r.ok,status:r.status,j:j}; }); })
+      .catch(function(){ return {ok:false,status:0,j:{error:"Sem conexão. Tente de novo."}}; });
+  }
+  var clone = function(o){ return JSON.parse(JSON.stringify(o)); };
+  function fmtPhone(n){ n=String(n||"").replace(/\D/g,""); if(n.length===13) return "("+n.slice(2,4)+") "+n.slice(4,9)+"-"+n.slice(9); if(n.length===11) return "("+n.slice(0,2)+") "+n.slice(2,7)+"-"+n.slice(7); return n; }
+  function ago(ts){ var m=Math.round((Date.now()-ts)/60000); if(m<1) return "agora"; if(m<60) return "há "+m+" min"; var h=Math.round(m/60); return "há "+h+"h"; }
+  function profileUrl(){ return location.origin+"/"+S.me.user.username; }
+  function avatarHTML(cls,id){ var p=S.saved; return p.hasAvatar ? '<img class="ava '+cls+'" id="'+id+'" src="/img/'+S.me.user.id+'/avatar?v='+p.avatarVersion+'" alt="">' : '<div class="ava '+cls+'" id="'+id+'" aria-hidden="true">'+esc((p.name||S.me.user.username).charAt(0).toUpperCase())+'</div>'; }
+
+  // ================= Entrar / Criar conta =================
+  function authMode(up){
+    $("segIn").setAttribute("aria-selected",String(!up)); $("segUp").setAttribute("aria-selected",String(up));
+    $("formIn").hidden=up; $("formUp").hidden=!up;
+    (up?$("upName"):$("inUser")).focus();
+  }
+  $("segIn").addEventListener("click",function(){ authMode(false); });
+  $("segUp").addEventListener("click",function(){ authMode(true); });
+  $("upUser").addEventListener("input",function(){
+    var v=this.value.toLowerCase().replace(/[^a-z0-9._]/g,""); if(v!==this.value) this.value=v;
+    $("upPreview").textContent=location.host+"/"+(v||"seunome");
+  });
+  $("upName").addEventListener("input",function(){
+    if($("upUser").dataset.touched) return;
+    var v=this.value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"").slice(0,20);
+    $("upUser").value=v; $("upPreview").textContent=location.host+"/"+(v||"seunome");
+  });
+  $("upUser").addEventListener("keydown",function(){ this.dataset.touched="1"; });
+  $("formIn").addEventListener("submit",function(e){
+    e.preventDefault(); setMsg("inMsg","Entrando…");
+    call("POST","/api/entrar",{username:$("inUser").value,password:$("inPass").value}).then(function(x){
+      if(x.ok) boot(); else setMsg("inMsg",x.j.error||"Não deu pra entrar.","err");
+    });
+  });
+  $("formUp").addEventListener("submit",function(e){
+    e.preventDefault(); setMsg("upMsg","Criando…");
+    call("POST","/api/cadastro",{name:$("upName").value,username:$("upUser").value,whatsapp:$("upWa").value,password:$("upPass").value}).then(function(x){
+      if(x.ok){ S.fresh=true; boot(); }
+      else { setMsg("upMsg",x.j.error||"Não deu pra criar a conta.","err"); var f={username:"upUser",password:"upPass",name:"upName",whatsapp:"upWa"}[x.j.field]; if(f) $(f).focus(); }
+    });
+  });
+
+  // ================= Início =================
+  function boot(){
+    call("GET","/api/me").then(function(x){
+      $("loading").hidden=true;
+      if(!x.ok){ $("auth").hidden=false; $("app").hidden=true; if(location.pathname==="/cadastro") authMode(true); return; }
+      S.me=x.j; S.tags=x.j.tags; S.saved=x.j.profile; S.draft=clone(S.saved);
+      $("auth").hidden=true; $("app").hidden=false;
+      renderAll();
+      go(S.fresh?"perfil":(location.hash.slice(1)||"inicio"));
+      if(S.fresh) toast("Conta criada! Complete seu perfil.");
+      pollRequests(); setInterval(pollRequests,15000);
+    });
+  }
+
+  function renderAll(){ renderTop(); renderHome(); renderProfileForm(); renderPage(); renderMusic(); renderMore(); markDirty(); }
+
+  function renderTop(){
+    var p=S.saved, u=S.me.user;
+    $("topAva").outerHTML=avatarHTML("","topAva");
+    $("topName").textContent=p.name||u.username;
+    $("topUser").textContent="@"+u.username+(u.role==="admin"?" · administrador":"");
+    $("seeProfile").href="/"+u.username;
+  }
+
+  function drawQR(el,link){
+    try{ var q=qrcode(0,"M"); q.addData(link); q.make(); el.innerHTML=q.createSvgTag({cellSize:6,margin:1,scalable:true}); }
+    catch(e){ setTimeout(function(){ drawQR(el,link); },300); }
+  }
+
+  function renderHome(){
+    var link=profileUrl();
+    $("myUrl").textContent=link.replace(/^https?:\/\//,"");
+    drawQR($("qrSmall"),link);
+    var hasMusic=S.saved.modules.some(function(m){return m.id==="musica"&&m.on;});
+    $("qrFullTitle").innerHTML=hasMusic?"Escaneia e <em>escolhe a música</em>":"Escaneia e <em>me segue</em>";
+    if("NDEFReader" in window) $("nfcWrite").hidden=false;
+    var sp=S.me.spotify, st={none:["off","Spotify não conectado","Modo pedidos: o passageiro pede e você toca"],waitlist:["warn","Spotify: na lista de espera","Fale com "+sp.ownerName+" pra desbloquear"],
+      requested:["warn","Spotify: vaga reservada","Esperando a liberação"],approved:["warn","Spotify liberado","Toque pra conectar sua conta"],connected:["on","Spotify conectado","O passageiro controla a música"]}[sp.status]||["off","Spotify",""];
+    var mods=S.saved.modules.filter(function(m){return m.on;}).map(function(m){return MODS[m.id][0];});
+    $("statusList").innerHTML=
+      item("musica",'<span class="dot '+st[0]+'"></span>',st[1],st[2])+
+      item("musica",'<span class="count">'+S.me.pendingRequests+'</span>',"Pedidos de música","Últimas 24 horas")+
+      item("pagina",'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>',"Na sua página",mods.join(", ")||"Nada ligado ainda")+
+      (S.saved.modules.some(function(m){return m.id==="pesquisa"&&m.on;})||S.me.feedbackCount ? item("mais",'<span class="count">'+S.me.feedbackCount+'</span>',"Respostas do questionário","Ver nomes, ideias e contatos") : "");
+    function item(v,lead,t,s){ return '<button class="item" type="button" data-go="'+v+'">'+lead+'<span class="t"><b>'+esc(t)+'</b><small>'+esc(s)+'</small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--muted)"><path d="M9 5l7 7-7 7"/></svg></button>'; }
+  }
+  $("statusList").addEventListener("click",function(e){ var b=e.target.closest("[data-go]"); if(b) go(b.dataset.go); });
+  $("copyUrl").addEventListener("click",function(){ copy(profileUrl(),"Link copiado"); });
+  function copy(text,ok){
+    if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ toast(ok); }).catch(function(){ prompt("Copie:",text); });
+    else prompt("Copie:",text);
+  }
+  $("shareBtn").addEventListener("click",function(){
+    var link=profileUrl();
+    if(navigator.share) navigator.share({title:S.saved.name+" · Driver Hub",text:"Meu perfil de motorista",url:link}).catch(function(){});
+    else copy(link,"Link copiado");
+  });
+  var lock=null;
+  $("qrBig").addEventListener("click",function(){
+    drawQR($("qrFullBox"),profileUrl()); $("qrFull").hidden=false; $("qrClose").focus();
+    try{ if(navigator.wakeLock) navigator.wakeLock.request("screen").then(function(l){lock=l}).catch(function(){}); }catch(e){}
+  });
+  function closeQr(){ $("qrFull").hidden=true; try{ if(lock){lock.release();lock=null;} }catch(e){} $("qrBig").focus(); }
+  $("qrClose").addEventListener("click",closeQr);
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&!$("qrFull").hidden) closeQr(); });
+  $("nfcWrite").addEventListener("click",function(){
+    setMsg("nfcMsg","Encoste o celular na etiqueta…");
+    try{ new NDEFReader().write({records:[{recordType:"url",data:profileUrl()}]}).then(function(){ setMsg("nfcMsg","Gravado! Teste encostando outro celular.","ok"); })
+      .catch(function(){ setMsg("nfcMsg","Não deu pra gravar. Use o app NFC Tools.","err"); }); }
+    catch(e){ setMsg("nfcMsg","Não deu pra gravar. Use o app NFC Tools.","err"); }
+  });
+
+  // ================= Perfil =================
+  function renderProfileForm(){
+    var d=S.draft;
+    document.querySelectorAll("#v-perfil [data-k]").forEach(function(el){
+      var k=el.dataset.k, v=d[k]||"";
+      if(k==="whatsapp") v=fmtPhone(v.replace(/^55(?=\d{10,11}$)/,""));
+      el.value=v;
+    });
+    $("photoAva").outerHTML=avatarHTML("","photoAva");
+    $("avatarDel").hidden=!S.saved.hasAvatar;
+    $("tagChips").innerHTML=S.tags.map(function(t){ return '<button type="button" aria-pressed="'+(d.tags.indexOf(t)>=0)+'">'+esc(t)+'</button>'; }).join("");
+    var k=d.pixKey||"", type=/@/.test(k)?"email":/^\+55\d{10,11}$/.test(k)?"celular":/^\d{11}$/.test(k)?"cpf":k?"aleatoria":"celular";
+    $("pixType").value=type;
+    $("pixKey").value=type==="celular"?fmtPhone(k.replace(/^\+55/,"")):k;
+    pixPlaceholder();
+  }
+  function pixPlaceholder(){ $("pixKey").placeholder={celular:"(64) 9 0000-0000",cpf:"000.000.000-00",email:"voce@email.com",aleatoria:"Cole a chave aleatória"}[$("pixType").value]; }
+  function pixNormalize(){
+    var t=$("pixType").value, v=$("pixKey").value.trim();
+    if(!v) return "";
+    if(t==="celular"){ var n=v.replace(/\D/g,"").replace(/^55(?=\d{10,11}$)/,""); return "+55"+n; }
+    if(t==="cpf") return v.replace(/\D/g,"");
+    if(t==="email") return v.toLowerCase();
+    return v;
+  }
+  document.querySelectorAll("#v-perfil [data-k]").forEach(function(el){
+    el.addEventListener("input",function(){
+      var k=el.dataset.k, v=el.value;
+      if(k==="whatsapp"){ var n=v.replace(/\D/g,""); v=n.length>=10&&n.length<=11?"55"+n:n; }
+      if(k==="instagram") v=v.replace(/^@/,"");
+      S.draft[k]=v; markDirty();
+    });
+  });
+  $("pixType").addEventListener("change",function(){ pixPlaceholder(); S.draft.pixKey=pixNormalize(); markDirty(); });
+  $("pixKey").addEventListener("input",function(){ S.draft.pixKey=pixNormalize(); markDirty(); });
+  $("tagChips").addEventListener("click",function(e){
+    var b=e.target.closest("button"); if(!b) return;
+    var on=b.getAttribute("aria-pressed")!=="true"; b.setAttribute("aria-pressed",String(on));
+    var t=b.textContent; S.draft.tags=S.draft.tags.filter(function(x){return x!==t;}); if(on) S.draft.tags.push(t); markDirty();
+  });
+
+  // Imagens: reduz no celular antes de mandar
+  function resize(file,max,square,quality){
+    return new Promise(function(ok,fail){
+      var img=new Image(), url=URL.createObjectURL(file);
+      img.onload=function(){
+        var w=img.naturalWidth,h=img.naturalHeight,sx=0,sy=0,sw=w,sh=h;
+        if(square){ var s=Math.min(w,h); sx=(w-s)/2; sy=(h-s)/2; sw=sh=s; w=h=Math.min(s,max); }
+        else { var r=Math.min(1,max/Math.max(w,h)); w=Math.round(w*r); h=Math.round(h*r); }
+        var c=document.createElement("canvas"); c.width=w; c.height=h;
+        c.getContext("2d").drawImage(img,sx,sy,sw,sh,0,0,w,h); URL.revokeObjectURL(url);
+        ok(c.toDataURL("image/jpeg",quality));
+      };
+      img.onerror=function(){ fail(); }; img.src=url;
+    });
+  }
+  function upload(kind,file){
+    toast("Enviando foto…");
+    return resize(file,kind==="avatar"?480:1400,kind==="avatar",kind==="avatar"?.85:.78).then(function(data){
+      return call("POST","/api/imagem",{kind:kind,data:data});
+    }).then(function(x){
+      if(!x.ok){ toast(x.j.error||"Não deu pra enviar a foto."); return; }
+      var keep=S.draft; S.saved=x.j.profile;
+      keep.hasAvatar=S.saved.hasAvatar; keep.avatarVersion=S.saved.avatarVersion; keep.bgVersion=S.saved.bgVersion; if(kind==="fundo") keep.theme.bg="foto";
+      S.draft=keep; renderTop(); renderProfileForm(); renderPage(); markDirty(); toast("Foto salva");
+    }).catch(function(){ toast("Não deu pra ler essa imagem."); });
+  }
+  $("avatarFile").addEventListener("change",function(){ if(this.files[0]) upload("avatar",this.files[0]); this.value=""; });
+  $("avatarDel").addEventListener("click",function(){
+    call("POST","/api/imagem",{kind:"avatar",remove:true}).then(function(x){ if(x.ok){ S.saved.hasAvatar=false; S.draft.hasAvatar=false; renderTop(); renderProfileForm(); toast("Foto removida"); } });
+  });
+
+  // ================= Página =================
+  function renderPage(){
+    var d=S.draft, t=d.theme;
+    // Módulos
+    $("mods").innerHTML=d.modules.map(function(m,i){
+      var info=MODS[m.id]; if(!info) return "";
+      return '<div class="mod" data-i="'+i+'"><div class="head">'+
+        '<button class="mv" type="button" data-up aria-label="Subir '+esc(info[0])+'"'+(i===0?" disabled":"")+'><svg class="i" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>'+
+        '<button class="mv" type="button" data-down aria-label="Descer '+esc(info[0])+'"'+(i===d.modules.length-1?" disabled":"")+'><svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>'+
+        '<span class="t"><b>'+esc(info[0])+'</b><small>'+esc(info[1])+'</small></span>'+
+        '<button class="switch" type="button" role="switch" aria-checked="'+m.on+'" aria-label="Mostrar '+esc(info[0])+'" data-sw></button></div>'+
+        (m.on?modBody(m.id):"")+'</div>';
+    }).join("");
+    // Temas
+    $("themes").innerHTML=Object.keys(THEMES).map(function(k){ var c=THEMES[k];
+      return '<button type="button" class="sw" role="radio" aria-checked="'+(t.preset===k)+'" data-t="'+k+'"><span class="pv" style="background:'+c[1]+'"><i style="background:'+c[3]+'"></i><i style="background:'+c[4]+';opacity:.5"></i><i style="background:'+c[2]+';height:16px;width:100%"></i></span><span>'+c[0]+'</span></button>'; }).join("");
+    $("accent").value=t.accent||THEMES[t.preset][3];
+    $("accentReset").hidden=!t.accent;
+    $("fonts").innerHTML=Object.keys(FONTS).map(function(k){ var f=FONTS[k];
+      return '<button type="button" role="radio" aria-checked="'+(t.font===k)+'" data-f="'+k+'"><b style="font-family:'+esc(f[1])+';font-weight:'+f[2]+'">'+f[3]+'</b><small>'+f[0]+'</small></button>'; }).join("");
+    $("bgs").innerHTML=Object.keys(BGS).map(function(k){ return '<button type="button" role="radio" aria-checked="'+(t.bg===k)+'" data-b="'+k+'">'+(k==="foto"&&d.bgVersion?"Minha foto":k==="foto"?"Enviar foto":BGS[k])+'</button>'; }).join("")+
+      (d.bgVersion?'<button type="button" data-b="trocar">Trocar foto</button>':"");
+    $("headline").value=t.headline||""; $("sub").value=t.sub||"";
+  }
+  function modBody(id){
+    var d=S.draft;
+    if(id==="links") return '<div class="body"><div class="stack" id="linksEd">'+d.links.map(function(l,i){
+        return '<div class="linkrow" data-li="'+i+'"><input placeholder="Nome" maxlength="30" value="'+esc(l.label)+'" data-lk="label" aria-label="Nome do link"><input placeholder="site.com" value="'+esc(l.url)+'" data-lk="url" aria-label="Endereço do link" autocapitalize="none" inputmode="url"><button class="mv" type="button" data-ldel aria-label="Apagar link"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>';
+      }).join("")+'</div>'+(d.links.length<6?'<button class="btn sm" type="button" data-ladd>Adicionar link</button>':"")+'</div>';
+    if(id==="musica") return '<div class="body"><label class="f">Onde você toca os pedidos<select data-svc>'+Object.keys(SERVICES).map(function(k){ return '<option value="'+k+'"'+(d.music.service===k?" selected":"")+'>'+SERVICES[k]+'</option>'; }).join("")+'</select></label>'+
+      '<div class="row between"><span class="t" style="flex:1"><b style="display:block">Passageiro pode pausar, pular e mudar o volume</b><small class="hint">Só com o Spotify conectado. Desligado, ele só coloca música na fila.</small></span><button class="switch" type="button" role="switch" aria-checked="'+d.music.control+'" aria-label="Passageiro controla o player" data-ctl></button></div></div>';
+    if(id==="pix" && !d.pixKey) return '<div class="body"><p class="hint">Cadastre sua chave Pix na aba Perfil.</p></div>';
+    if(id==="instagram" && !d.instagram) return '<div class="body"><p class="hint">Coloque seu @ na aba Perfil.</p></div>';
+    return "";
+  }
+  $("mods").addEventListener("click",function(e){
+    var mod=e.target.closest(".mod"); if(!mod) return; var i=Number(mod.dataset.i), list=S.draft.modules;
+    if(e.target.closest("[data-up]")&&i>0){ var a=list.splice(i,1)[0]; list.splice(i-1,0,a); }
+    else if(e.target.closest("[data-down]")&&i<list.length-1){ var b=list.splice(i,1)[0]; list.splice(i+1,0,b); }
+    else if(e.target.closest("[data-sw]")) list[i].on=!list[i].on;
+    else if(e.target.closest("[data-ctl]")) S.draft.music.control=!S.draft.music.control;
+    else if(e.target.closest("[data-ladd]")) S.draft.links.push({label:"",url:""});
+    else if(e.target.closest("[data-ldel]")) S.draft.links.splice(Number(e.target.closest("[data-li]").dataset.li),1);
+    else return;
+    renderPage(); markDirty();
+  });
+  $("mods").addEventListener("input",function(e){
+    var r=e.target.closest("[data-li]"); if(r){ S.draft.links[Number(r.dataset.li)][e.target.dataset.lk]=e.target.value; markDirty(); }
+  });
+  $("mods").addEventListener("change",function(e){ if(e.target.matches("[data-svc]")){ S.draft.music.service=e.target.value; markDirty(); } });
+  $("themes").addEventListener("click",function(e){ var b=e.target.closest("[data-t]"); if(!b) return; S.draft.theme.preset=b.dataset.t; S.draft.theme.accent=""; renderPage(); markDirty(); });
+  $("accent").addEventListener("input",function(){ S.draft.theme.accent=this.value; $("accentReset").hidden=false; markDirty(); });
+  $("accentReset").addEventListener("click",function(){ S.draft.theme.accent=""; renderPage(); markDirty(); });
+  $("fonts").addEventListener("click",function(e){ var b=e.target.closest("[data-f]"); if(!b) return; S.draft.theme.font=b.dataset.f; renderPage(); markDirty(); });
+  $("bgs").addEventListener("click",function(e){
+    var b=e.target.closest("[data-b]"); if(!b) return; var v=b.dataset.b;
+    if(v==="trocar"||(v==="foto"&&!S.draft.bgVersion)){ $("bgFile").click(); return; }
+    S.draft.theme.bg=v; renderPage(); markDirty();
+  });
+  $("bgFile").addEventListener("change",function(){ if(this.files[0]) upload("fundo",this.files[0]); this.value=""; });
+  $("headline").addEventListener("input",function(){ S.draft.theme.headline=this.value; markDirty(); });
+  $("sub").addEventListener("input",function(){ S.draft.theme.sub=this.value; markDirty(); });
+
+  // ================= Salvar =================
+  var FIELDS=["name","city","car","since","bio","tags","instagram","whatsapp","waMsg","pixKey","pixName","pixCity","links","theme","modules","music"];
+  function dirty(){ return FIELDS.some(function(k){ return JSON.stringify(S.draft[k])!==JSON.stringify(S.saved[k]); }); }
+  function markDirty(){ $("savebar").classList.toggle("show",!!S.saved&&dirty()); }
+  $("discard").addEventListener("click",function(){ S.draft=clone(S.saved); renderProfileForm(); renderPage(); markDirty(); });
+  $("save").addEventListener("click",function(){
+    if(S.draft.since && !/^(19|20)\d\d$/.test(S.draft.since)){ go("perfil"); toast("Coloque o ano com 4 números, tipo 2020."); return; }
+    var out={}; FIELDS.forEach(function(k){ out[k]=S.draft[k]; });
+    var btn=$("save"); btn.disabled=true; btn.textContent="Salvando…";
+    call("POST","/api/perfil",out).then(function(x){
+      btn.disabled=false; btn.textContent="Salvar";
+      if(!x.ok){ toast(x.j.error||"Não deu pra salvar."); return; }
+      S.saved=x.j.profile; S.draft=clone(S.saved); renderAll(); toast("Salvo! Seu perfil já mudou.");
+    });
+  });
+  window.addEventListener("beforeunload",function(e){ if(S.saved&&dirty()){ e.preventDefault(); e.returnValue=""; } });
+
+  // ================= Música =================
+  function renderMusic(){
+    var sp=S.me.spotify, c=$("spCard"), wa="https://wa.me/"+sp.ownerWhatsapp+"?text=";
+    var unlockMsg=encodeURIComponent("Oi "+sp.ownerName+", sou o @"+S.me.user.username+" no Driver Hub e quero desbloquear o controle do Spotify."+(sp.email?" Meu e-mail do Spotify: "+sp.email:""));
+    var premium='<p class="note">Precisa de <b>Spotify Premium</b>. Sem Premium, o passageiro não consegue pausar, pular nem pôr música na fila.</p>';
+    var emailField='<label class="f">E-mail da sua conta do Spotify<input id="spEmail" type="email" autocapitalize="none" spellcheck="false" value="'+esc(sp.email)+'" placeholder="voce@email.com"></label>';
+    var h="";
+    if(sp.status==="connected"){
+      h='<header><h3>Controle total ligado</h3><p class="hint">Os passageiros escolhem, pulam e pausam no seu Spotify.</p></header>'+
+        '<div class="status" id="spLive"><span class="dot on"></span>Spotify conectado</div>'+
+        '<p class="hint">Deixe o Spotify aberto e tocando. Se estiver pausado, o pedido do passageiro não entra na fila.</p>'+
+        '<div class="grid2"><a class="btn" href="/spotify/conectar">Reconectar</a><button class="btn danger" type="button" data-sp="desconectar">Desconectar</button></div>';
+    } else if(sp.status==="approved"){
+      h='<header><h3>Liberado! Falta conectar</h3><p class="hint">Sua conta já pode controlar a música. Faltam dois toques.</p></header>'+
+        '<ol class="steps"><li>Abra o <b>Spotify</b> e dê play numa música.</li><li>Volte aqui, toque em <b>Conectar Spotify</b> e depois em <b>Concordo</b>.</li></ol>'+
+        '<a class="btn primary block" href="/spotify/conectar">Conectar Spotify</a>';
+    } else if(sp.status==="requested"){
+      h='<header><h3>Vaga reservada pra você</h3><p class="hint">'+esc(sp.ownerName)+' precisa liberar o e-mail <b>'+esc(sp.email)+'</b> no site do Spotify. Quando liberar, o botão Conectar aparece aqui.</p></header>'+
+        '<a class="btn wa block" target="_blank" rel="noopener" href="'+wa+encodeURIComponent("Oi "+sp.ownerName+", reservei uma vaga do Spotify no Driver Hub (@"+S.me.user.username+"). Meu e-mail do Spotify: "+sp.email)+'">Avisar '+esc(sp.ownerName)+' no WhatsApp</a>'+
+        '<button class="linkbtn" type="button" data-sp="cancelar" style="align-self:center;color:var(--muted)">Cancelar pedido</button>';
+    } else if(sp.status==="waitlist"){
+      h='<header><h3>Você está na lista</h3><p class="hint">As vagas grátis acabaram. Fale com '+esc(sp.ownerName)+' pra desbloquear o controle do Spotify.</p></header>'+
+        '<a class="btn wa block" target="_blank" rel="noopener" href="'+wa+unlockMsg+'">Falar com '+esc(sp.ownerName)+' pra desbloquear</a>'+
+        '<button class="linkbtn" type="button" data-sp="cancelar" style="align-self:center;color:var(--muted)">Sair da lista</button>';
+    } else if(sp.freeLeft>0){
+      h='<header><h3>Controle total do Spotify, grátis</h3><p class="hint">O passageiro escolhe, pula e pausa direto no seu Spotify.</p></header>'+
+        '<div class="stack" style="gap:6px"><div class="row between"><b>Vagas grátis</b><span class="muted"><b style="color:var(--accent)">'+sp.freeLeft+'</b> de 4 restantes</span></div><div class="meter">'+[0,1,2,3].map(function(i){ return '<i class="'+(i<4-sp.freeLeft?"on":"")+'"></i>'; }).join("")+'</div></div>'+
+        premium+emailField+'<button class="btn primary block" type="button" data-sp="vaga">Pedir minha vaga</button><div class="msg" id="spMsg" role="status"></div>';
+    } else {
+      h='<header><h3>Vagas grátis esgotadas</h3><p class="hint">As 4 vagas grátis do Spotify já foram. Dá pra desbloquear falando com '+esc(sp.ownerName)+'. Enquanto isso, o modo pedidos funciona normalmente.</p></header>'+
+        premium+emailField+'<button class="btn wa block" type="button" data-sp="desbloquear">Falar com '+esc(sp.ownerName)+' pra desbloquear</button><div class="msg" id="spMsg" role="status"></div>';
+    }
+    c.innerHTML=h;
+    if(sp.status==="connected") call("GET","/api/spotify/status").then(function(x){
+      var el=$("spLive"); if(!el) return;
+      el.innerHTML=x.j.conectado?'<span class="dot on"></span>'+(x.j.tocando?"Tocando: "+esc(x.j.tocando):"Conectado, nada tocando agora"):'<span class="dot off"></span>Conexão caiu. Toque em Reconectar.';
+    });
+    var svc=SERVICES[S.saved.music.service];
+    $("reqHint").textContent=sp.status==="connected"?"Com o Spotify conectado, as músicas entram direto na fila. Aqui aparecem só os pedidos de antes.":"O passageiro pede pelo seu perfil e o pedido aparece aqui. Toque pra abrir no "+svc+".";
+  }
+  $("spCard").addEventListener("click",function(e){
+    var b=e.target.closest("[data-sp]"); if(!b) return; var a=b.dataset.sp;
+    if(a==="vaga"||a==="desbloquear"){
+      var email=($("spEmail")||{}).value||"";
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ setMsg("spMsg","Coloque o e-mail da sua conta do Spotify.","err"); $("spEmail").focus(); return; }
+      var w=a==="desbloquear"?window.open("","_blank"):null;
+      b.disabled=true;
+      call("POST","/api/spotify/vaga",{email:email}).then(function(x){
+        b.disabled=false;
+        if(!x.ok){ if(w) w.close(); setMsg("spMsg",x.j.error||"Não deu certo.","err"); return; }
+        S.me.spotify.status=x.j.status; S.me.spotify.email=email.toLowerCase();
+        if(w){ var sp=S.me.spotify; w.location="https://wa.me/"+sp.ownerWhatsapp+"?text="+encodeURIComponent("Oi "+sp.ownerName+", sou o @"+S.me.user.username+" no Driver Hub e quero desbloquear o controle do Spotify. Meu e-mail do Spotify: "+sp.email); }
+        refreshMe(); toast(x.j.status==="requested"?"Vaga reservada!":"Pedido enviado");
+      });
+    } else if(a==="cancelar"||a==="desconectar"){
+      if(a==="desconectar"&&!confirm("Desconectar o Spotify? Os passageiros voltam pro modo pedidos.")) return;
+      call("POST","/api/spotify/"+a).then(function(){ refreshMe(); });
+    }
+  });
+  function refreshMe(){ return call("GET","/api/me").then(function(x){ if(x.ok){ S.me=x.j; renderHome(); renderMusic(); renderMore(); } }); }
+
+  var reqs=[];
+  function pollRequests(){
+    if(document.hidden) return;
+    call("GET","/api/pedidos").then(function(x){
+      if(!x.ok) return; reqs=x.j.pedidos||[];
+      var pend=reqs.filter(function(r){return !r.done;}).length;
+      $("reqBadge").hidden=!pend; $("reqBadge").textContent=pend;
+      S.me.pendingRequests=pend;
+      renderRequests();
+      if(S.view==="inicio") renderHome();
+    });
+  }
+  document.addEventListener("visibilitychange",pollRequests);
+  function openLink(r){
+    var q=encodeURIComponent(r.title+" "+(r.artist||"")), s=S.saved.music.service;
+    if(s==="spotify") return "https://open.spotify.com/search/"+q;
+    if(s==="ytmusic") return "https://music.youtube.com/search?q="+q;
+    if(s==="deezer") return "https://www.deezer.com/search/"+q;
+    return r.link||("https://music.apple.com/br/search?term="+q);
+  }
+  function renderRequests(){
+    var svc=SERVICES[S.saved.music.service];
+    $("clearReq").hidden=!reqs.some(function(r){return !r.done;});
+    $("reqList").innerHTML=reqs.length?reqs.map(function(r){
+      return '<div class="req'+(r.done?" done":"")+'" data-id="'+r.id+'">'+(r.img?'<img src="'+esc(r.img)+'" alt="" loading="lazy">':'<div class="art"></div>')+
+        '<div class="t"><b>'+esc(r.title)+'</b><small>'+esc(r.artist)+' · '+ago(r.created_at)+'</small></div>'+
+        (r.done?'<span class="tagline ok">Tocada</span>':'<div class="acts"><a class="btn sm primary" href="'+esc(openLink(r))+'" target="_blank" rel="noopener" data-open>Abrir no '+esc(svc)+'</a><button class="btn sm ghost" type="button" data-done>Já toquei</button></div>')+'</div>';
+    }).join(""):'<div class="empty">Nenhum pedido nas últimas 24 horas.<br>Mostre o QR pro passageiro e os pedidos aparecem aqui.</div>';
+  }
+  $("reqList").addEventListener("click",function(e){
+    var row=e.target.closest("[data-id]"); if(!row) return;
+    if(e.target.closest("[data-done]")||e.target.closest("[data-open]")){
+      call("POST","/api/pedidos/"+row.dataset.id+"/feito").then(pollRequests);
+    }
+  });
+  $("clearReq").addEventListener("click",function(){ call("POST","/api/pedidos/limpar").then(pollRequests); });
+
+  // ================= Mais =================
+  function renderMore(){
+    var admin=S.me.user.role==="admin";
+    $("adminArea").hidden=!admin;
+    loadAnswers(false);
+    if(admin) loadAdmin();
+  }
+  function loadAnswers(all){
+    call("GET","/api/respostas"+(all?"?todos=1":"")).then(function(x){
+      if(!x.ok) return; var list=x.j.respostas||[];
+      var target=all?$("admAns"):$("ansList"); if(!target) return;
+      if(!all){ $("ansInfo").textContent=list.length+(list.length===1?" resposta":" respostas"); $("ansCsv").hidden=!list.length; }
+      target.innerHTML=list.length?list.slice(0,60).map(function(r){
+        var fone=String(r.fone||"").replace(/\D/g,"").replace(/^55(?=\d{10,11}$)/,"");
+        return '<div class="ans"><small>'+new Date(r.quando).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})+(r.usaria?" · usaria: "+esc(r.usaria):"")+(r.via?" · via @"+esc(r.via):"")+(r.avisar?" · quer aviso":"")+'</small>'+
+          '<b>'+esc(r.nome||"Sem nome")+(fone?' · <a href="https://wa.me/55'+esc(fone)+'" target="_blank" rel="noopener">'+esc(r.fone)+'</a>':"")+'</b>'+
+          ((r.dores||[]).length?'<span class="hint">Incomoda: '+esc(r.dores.join(", "))+'</span>':"")+(r.ideia?'<span>“'+esc(r.ideia)+'”</span>':"")+'</div>';
+      }).join(""):'<div class="empty">Nenhuma resposta ainda. Ligue o Questionário na aba Página.</div>';
+    });
+  }
+
+  // ----- Administrador -----
+  var ST={requested:["warn","Esperando liberar"],approved:["warn","Liberado, falta conectar"],connected:["ok","Conectado"],waitlist:["warn","Lista de espera"]};
+  function loadAdmin(){
+    call("GET","/api/admin/resumo").then(function(x){
+      if(!x.ok) return; var d=x.j, A=$("adminArea");
+      var appName={}; d.apps.forEach(function(a){ appName[a.id]=a.label; });
+      var pending=d.links.filter(function(l){ return l.status==="requested"||l.status==="waitlist"; });
+      var others=d.links.filter(function(l){ return l.status==="approved"||l.status==="connected"; });
+      function linkRow(l){
+        var app=d.apps.find(function(a){return a.id===l.app_id;});
+        var dev=app?"https://developer.spotify.com/dashboard/"+app.client_id+"/users":"https://developer.spotify.com/dashboard";
+        return '<div class="slot" data-u="'+l.user_id+'"><div class="row between"><b>@'+esc(l.username)+'</b><span class="tagline '+ST[l.status][0]+'">'+ST[l.status][1]+'</span></div>'+
+          '<span class="hint">'+esc(l.email||"sem e-mail")+(app?" · "+esc(app.label):" · sem app")+'</span>'+
+          (l.status==="requested"?'<ol class="steps"><li><button class="linkbtn" type="button" data-copy="'+esc(l.email)+'">Copiar e-mail</button></li><li><a class="linkbtn" href="'+dev+'" target="_blank" rel="noopener">Abrir o app no Spotify</a> e adicionar em <b>User Management</b>.</li><li>Voltar e tocar em <b>Liberar</b>.</li></ol>':"")+
+          '<div class="row" style="flex-wrap:wrap;gap:8px">'+
+          (l.status==="requested"?'<button class="btn sm primary" type="button" data-a="liberar">Liberar</button>':"")+
+          (l.status==="waitlist"||l.status==="requested"?'<select data-assign aria-label="Colocar em um app" style="width:auto;min-height:38px;padding:6px 36px 6px 10px;font-size:14px"><option value="">Mover pra app…</option>'+d.apps.map(function(a){ return '<option value="'+a.id+'"'+(a.used>=a.capacity&&a.id!==l.app_id?" disabled":"")+'>'+esc(a.label)+' ('+a.used+'/'+a.capacity+')</option>'; }).join("")+'</select>':"")+
+          '<button class="btn sm danger" type="button" data-a="remover">Remover</button></div></div>';
+      }
+      A.innerHTML='<h2>Administração</h2>'+
+        '<div class="row between"><h3>Vagas do Spotify</h3><span class="hint">'+d.users.length+' motoristas</span></div>'+
+        '<div class="list">'+(pending.length?pending.map(linkRow).join(""):'<div class="empty">Nenhum pedido de vaga esperando.</div>')+'</div>'+
+        (others.length?'<h3>Liberados</h3><div class="list">'+others.map(linkRow).join("")+'</div>':"")+
+        '<h3>Apps do Spotify</h3><div class="list">'+d.apps.map(function(a){
+          return '<div class="slot" data-app="'+a.id+'"><div class="row between"><b>'+esc(a.label)+'</b><span class="hint">'+a.used+' de '+a.capacity+'</span></div>'+
+            '<div class="meter">'+Array.from({length:a.capacity}).map(function(_,i){ return '<i class="'+(i<a.used?"on":"")+'"></i>'; }).join("")+'</div>'+
+            '<div class="row between"><span class="hint">Vagas grátis automáticas</span><button class="switch" type="button" role="switch" aria-checked="'+a.free+'" aria-label="Vagas grátis automáticas em '+esc(a.label)+'" data-free></button></div>'+
+            (a.id!==1&&!a.used?'<button class="linkbtn" type="button" data-delapp style="align-self:flex-start;color:var(--err)">Apagar este app</button>':"")+'</div>';
+        }).join("")+'</div>'+
+        '<details class="howto block"><summary>Adicionar app do Spotify (ex.: da sua mãe)</summary><form id="appForm" class="stack" style="margin-top:12px" novalidate>'+
+          '<p class="hint">A dona do app cria em developer.spotify.com com Redirect URI <b>'+esc(location.origin)+'/callback</b> e marca Web API.</p>'+
+          '<label class="f">Nome<input name="label" maxlength="40" placeholder="App da mãe"></label>'+
+          '<label class="f">Client ID<input name="client_id" autocapitalize="none" spellcheck="false"></label>'+
+          '<label class="f">Client Secret<input name="client_secret" autocapitalize="none" spellcheck="false"></label>'+
+          '<button class="btn primary" type="submit">Adicionar app</button><div class="msg" id="appMsg" role="status"></div></form></details>'+
+        '<h3>Motoristas</h3><div class="list">'+d.users.map(function(u){
+          return '<a class="item" href="/'+esc(u.username)+'" target="_blank" rel="noopener"><span class="t"><b>'+esc(u.name||u.username)+'</b><small>@'+esc(u.username)+(u.whatsapp?" · "+esc(fmtPhone(u.whatsapp)):"")+'</small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--muted)"><path d="M9 5l7 7-7 7"/></svg></a>';
+        }).join("")+'</div>'+
+        '<div class="row between"><h3>Respostas de todos</h3><a class="linkbtn" href="/respostas.csv?todos=1">Planilha</a></div><div class="list" id="admAns"></div>';
+      loadAnswers(true);
+    });
+  }
+  $("adminArea").addEventListener("click",function(e){
+    var cp=e.target.closest("[data-copy]"); if(cp){ copy(cp.dataset.copy,"E-mail copiado"); return; }
+    var act=e.target.closest("[data-a]"), slot=e.target.closest("[data-u]");
+    if(act&&slot){
+      if(act.dataset.a==="remover"&&!confirm("Tirar a vaga deste motorista? Lembre de remover o e-mail no site do Spotify também.")) return;
+      call("POST","/api/admin/vaga",{user_id:Number(slot.dataset.u),action:act.dataset.a}).then(function(x){ if(!x.ok) toast(x.j.error); loadAdmin(); }); return;
+    }
+    var app=e.target.closest("[data-app]");
+    if(app&&e.target.closest("[data-free]")){ var on=e.target.closest("[data-free]").getAttribute("aria-checked")!=="true"; call("POST","/api/admin/app/"+app.dataset.app,{free:on}).then(loadAdmin); }
+    if(app&&e.target.closest("[data-delapp]")&&confirm("Apagar este app?")) call("POST","/api/admin/app/"+app.dataset.app,{remove:true}).then(function(x){ if(!x.ok) toast(x.j.error); loadAdmin(); });
+  });
+  $("adminArea").addEventListener("change",function(e){
+    if(!e.target.matches("[data-assign]")||!e.target.value) return;
+    call("POST","/api/admin/vaga",{user_id:Number(e.target.closest("[data-u]").dataset.u),action:"atribuir",app_id:Number(e.target.value)}).then(function(x){ if(!x.ok) toast(x.j.error); loadAdmin(); });
+  });
+  $("adminArea").addEventListener("submit",function(e){
+    if(e.target.id!=="appForm") return; e.preventDefault(); var f=e.target;
+    call("POST","/api/admin/app",{label:f.label.value,client_id:f.client_id.value.trim(),client_secret:f.client_secret.value.trim(),free:false}).then(function(x){
+      if(x.ok){ toast("App adicionado"); loadAdmin(); } else setMsg("appMsg",x.j.error,"err");
+    });
+  });
+
+  $("passForm").addEventListener("submit",function(e){
+    e.preventDefault();
+    call("POST","/api/senha",{atual:$("passOld").value,nova:$("passNew").value}).then(function(x){
+      if(x.ok){ setMsg("passMsg","Senha trocada.","ok"); $("passOld").value=$("passNew").value=""; } else setMsg("passMsg",x.j.error||"Não deu certo.","err");
+    });
+  });
+  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(){ location.href="/painel"; }); });
+
+  // ================= Navegação =================
+  function go(v){
+    if(!$("v-"+v)) v="inicio";
+    S.view=v;
+    document.querySelectorAll(".view[id^=v-]").forEach(function(el){ el.hidden=el.id!=="v-"+v; });
+    document.querySelectorAll("nav.tabs button").forEach(function(b){ if(b.dataset.v===v) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+    history.replaceState(null,"","#"+v); window.scrollTo(0,0);
+    if(v==="musica") pollRequests();
+  }
+  document.querySelector("nav.tabs").addEventListener("click",function(e){ var b=e.target.closest("button"); if(b) go(b.dataset.v); });
+
+  boot();
+})();
+</script>
+</body>
+</html>

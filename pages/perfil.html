@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c0e1a">
+<!--HEAD-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" id="displayFont" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+<style>
+/* Perfil público do motorista. Escuro por padrão: é lido no banco de trás, de madrugada. */
+:root{
+  --bg:#0c0e1a; --panel:#151829; --line:#2a2f4a; --fg:#eef0fa; --muted:#9097b8;
+  --accent:#ffb347; --ink:#1b1206; --ok:#5fd39a; --err:#ff8a8a; --wa:#3ddc84; --wa-ink:#06210f;
+  --display:"Big Shoulders Display","Arial Narrow",sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --r:16px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45;
+  padding:max(14px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(40px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+::selection{background:var(--accent);color:var(--ink)}
+[hidden]{display:none!important}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+svg.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Fundo: foto apagada que some na esquerda e embaixo */
+.scene{position:fixed;inset:0;z-index:0;pointer-events:none;background-repeat:no-repeat;opacity:.34;
+  background-position:right -20px top -16vh;background-size:auto 112%}
+.scene.foto{opacity:.28;background-position:center top;background-size:cover}
+.scene::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,var(--bg) 0%,color-mix(in srgb,var(--bg) 55%,transparent) 45%,transparent 75%),
+             linear-gradient(180deg,transparent 50%,var(--bg) 100%)}
+.wrap{position:relative;z-index:1;max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+
+/* Topo: quem é o motorista */
+.who{display:flex;align-items:center;gap:12px}
+.ava{width:48px;height:48px;border-radius:50%;object-fit:cover;background:var(--panel);border:2px solid var(--accent);flex:none;
+  display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:22px;color:var(--accent)}
+.who .id{min-width:0;flex:1}
+.who b{display:block;font-weight:800;font-size:17px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who small{display:block;color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconbtn{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:9px 14px;font-weight:700;font-size:15px}
+.iconbtn:active{transform:scale(.97)}
+
+h1{font-family:var(--display);font-weight:900;font-size:clamp(46px,14vw,66px);line-height:.88;text-transform:uppercase;margin:6px 0 0;text-wrap:balance;letter-spacing:0}
+h1 em{font-style:normal;color:var(--accent)}
+body.f-redonda h1,body.f-classica h1{text-transform:none;line-height:.95;font-size:clamp(40px,12vw,58px)}
+body.f-redonda h1{font-weight:700}
+body.f-classica h1{font-weight:800}
+.sub{color:var(--muted);margin:10px 0 0;font-size:17px;max-width:34ch}
+
+/* WhatsApp */
+.wabtn{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--wa-ink);background:var(--wa);border-radius:14px;padding:13px 14px}
+.wabtn svg.wa{width:28px;height:28px;fill:var(--wa-ink);stroke:none;flex:none}
+.wabtn span{display:flex;flex-direction:column;min-width:0;flex:1}
+.wabtn b{font-size:17px;font-weight:800}
+.wabtn small{font-size:13px;opacity:.82}
+.wabtn:active{transform:scale(.98)}
+
+/* Abas */
+.tabs{position:sticky;top:0;z-index:5;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:0 -2px;
+  background:var(--bg);border:1.5px solid var(--line);border-radius:14px;box-shadow:0 10px 14px -10px rgba(0,0,0,.6)}
+.tabs button{border:0;background:transparent;border-radius:10px;padding:11px 0;font-weight:800;color:var(--muted);
+  font-family:var(--display);font-size:20px;letter-spacing:.04em;text-transform:uppercase}
+.tabs button[aria-selected=true]{background:var(--accent);color:var(--ink)}
+
+section{display:flex;flex-direction:column;gap:12px}
+h2{font-family:var(--display);font-weight:800;font-size:28px;line-height:1;margin:0;letter-spacing:.02em;text-transform:uppercase}
+body.f-redonda h2,body.f-classica h2{text-transform:none;letter-spacing:0;font-size:26px}
+.panel{background:color-mix(in srgb,var(--panel) 90%,transparent);border:1.5px solid var(--line);border-radius:var(--r)}
+.hint{font-size:14px;color:var(--muted);margin:0}
+.msg{font-size:14px;min-height:20px}
+.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
+
+/* Música */
+.now{display:flex;gap:12px;align-items:center;padding:12px}
+.art{width:56px;height:56px;border-radius:10px;background:var(--line);object-fit:cover;flex:none}
+.t{min-width:0;flex:1}
+.name{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.artist{color:var(--muted);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eq{display:inline-flex;gap:2px;align-items:flex-end;height:12px;margin-right:6px}
+.eq i{width:3px;background:var(--accent);animation:eq 1s infinite ease-in-out}
+.eq i:nth-child(2){animation-delay:.2s}.eq i:nth-child(3){animation-delay:.4s}
+@keyframes eq{0%,100%{height:4px}50%{height:12px}}
+@media (prefers-reduced-motion:reduce){.eq i{animation:none;height:8px}}
+.ctrl{display:flex;justify-content:center;align-items:center;gap:22px;padding-top:2px}
+.ctrl button{width:56px;height:56px;display:grid;place-items:center;border-radius:50%;border:1.5px solid var(--line);background:var(--panel)}
+.ctrl button.big{width:74px;height:74px;background:var(--accent);border-color:var(--accent);color:var(--ink);box-shadow:0 8px 18px -8px rgba(0,0,0,.55)}
+.ctrl svg{width:24px;height:24px;fill:currentColor;stroke:none}
+.ctrl .big svg{width:30px;height:30px}
+.ctrl button:disabled{opacity:.5}
+.vol{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--muted);font-weight:600}
+.vol input{flex:1;accent-color:var(--accent);min-width:0}
+.vol b{width:44px;text-align:right;color:var(--fg);font-variant-numeric:tabular-nums}
+.search{position:relative}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)}
+input,textarea{width:100%;font:inherit;color:var(--fg);background:color-mix(in srgb,var(--panel) 92%,transparent);border:1.5px solid var(--line);border-radius:12px;padding:13px 14px}
+.search input{padding-left:44px}
+input::placeholder,textarea::placeholder{color:var(--muted);opacity:.8}
+textarea{resize:vertical}
+.list{display:flex;flex-direction:column}
+.track{display:flex;gap:12px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line)}
+.track .art{width:46px;height:46px}
+.add{flex:none;border:1.5px solid var(--accent);color:var(--accent);background:transparent;border-radius:999px;padding:8px 16px;font-weight:800}
+.add:disabled{opacity:.5;cursor:default}
+.add.done{background:var(--accent);color:var(--ink)}
+.mode{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;font-size:14px;color:var(--muted)}
+.mode svg{color:var(--accent);margin-top:1px}
+
+/* Pix */
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.chips button,.opts button{border:1.5px solid var(--line);background:color-mix(in srgb,var(--panel) 90%,transparent);border-radius:999px;padding:12px 0;font-weight:700;font-variant-numeric:tabular-nums}
+.chips button[aria-pressed=true],.opts button[aria-pressed=true]{background:var(--accent);color:var(--ink);border-color:var(--accent)}
+.primary{display:block;width:100%;text-align:center;text-decoration:none;border:0;background:var(--accent);color:var(--ink);padding:15px;font-weight:800;font-size:17px;border-radius:12px}
+.primary:active{transform:scale(.98)}
+.primary:disabled{opacity:.6}
+.key{font-size:13px;color:var(--muted);word-break:break-all;margin:0}
+
+/* Redes e links */
+.links{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.links a{display:flex;align-items:center;gap:10px;text-decoration:none;padding:14px;min-width:0}
+.links a span{display:flex;flex-direction:column;min-width:0}
+.links a b{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:.03em;text-transform:uppercase;line-height:1.1}
+body.f-redonda .links a b,body.f-classica .links a b{text-transform:none;letter-spacing:0;font-size:18px}
+.links a small{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.links a svg{color:var(--accent)}
+.links a.wide{grid-column:1/-1}
+
+/* Questionário */
+#fb{display:flex;flex-direction:column;gap:18px;padding:16px}
+.q{display:flex;flex-direction:column;gap:8px;border:0;margin:0;padding:0;min-width:0}
+.q legend,.q>span{font-weight:700;padding:0;margin-bottom:8px}
+.q>span{margin-bottom:0}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opts button{padding:9px 14px;font-weight:600}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:15px}
+.check input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin-top:1px}
+.thanks{display:flex;flex-direction:column;gap:12px;padding:18px}
+.thanks p{margin:0}
+
+/* Aba Perfil */
+.card-id{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:24px 18px}
+.card-id .ava{width:112px;height:112px;font-size:48px;border-width:3px;margin-bottom:6px}
+.card-id h2{font-size:34px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-radius:var(--r);overflow:hidden;border:1.5px solid var(--line)}
+.facts div{background:color-mix(in srgb,var(--panel) 96%,transparent);padding:12px 14px;min-width:0}
+.facts div.wide{grid-column:1/-1}
+.facts dt{font-size:13px;color:var(--muted)}
+.facts dd{margin:2px 0 0;font-weight:700;overflow-wrap:anywhere}
+.bio{padding:16px;margin:0;white-space:pre-line}
+.tags{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:0;padding:0}
+.tags li{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;font-size:14px;font-weight:600;background:color-mix(in srgb,var(--panel) 90%,transparent)}
+.tags li svg{width:16px;height:16px;color:var(--ok)}
+
+footer{display:flex;flex-direction:column;align-items:center;gap:10px;font-size:13px;color:var(--muted);text-align:center;padding-top:8px}
+footer a{color:var(--muted);text-underline-offset:3px}
+.made{display:flex;align-items:center;gap:8px;text-decoration:none;border:1.5px solid var(--line);border-radius:999px;padding:9px 14px;color:var(--fg);font-weight:700}
+.made b{color:var(--accent)}
+
+/* QR em tela cheia: fundo branco para qualquer câmera ler no escuro */
+.qrview{position:fixed;inset:0;z-index:50;background:#fff;color:#0c0e1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;
+  padding:calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))}
+.qrview h3{font-family:var(--display);font-weight:900;font-size:clamp(38px,11vw,56px);line-height:.92;margin:0;text-transform:uppercase}
+.qrview h3 em{font-style:normal;color:#b45f00}
+#qrBox{width:min(78vw,58vh,420px)}
+#qrBox svg{display:block;width:100%;height:auto}
+.qrview p{margin:0;font-size:17px;font-weight:600}
+.qrview button{border:2px solid #0c0e1a;background:#fff;color:#0c0e1a;border-radius:999px;font-weight:800;padding:11px 26px}
+.demo{font-size:13px;color:var(--accent);border:1px dashed var(--accent);border-radius:12px;padding:8px 12px}
+</style>
+</head>
+<body>
+<div class="scene" id="scene" aria-hidden="true"></div>
+<div class="wrap">
+  <header>
+    <div class="who">
+      <div class="ava" id="ava" aria-hidden="true"></div>
+      <div class="id"><b id="whoName"></b><small id="whoLine"></small></div>
+      <button type="button" class="iconbtn" id="showQr" aria-label="Mostrar QR code deste perfil">
+        <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>QR</button>
+    </div>
+    <h1 id="headline"></h1>
+    <p class="sub" id="sub"></p>
+  </header>
+
+  <a class="wabtn" id="waTop" href="#" target="_blank" rel="noopener" hidden>
+    <svg class="wa" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5a9.4 9.4 0 0 0-8.1 14.2L2.5 21.5l4.9-1.3A9.4 9.4 0 1 0 12 2.5zm5.4 13.2c-.2.6-1.3 1.2-1.8 1.3-.5 0-.9.2-3.1-.7-2.6-1-4.3-3.7-4.4-3.9-.1-.2-1-1.4-1-2.7s.7-1.9.9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.2-.3.3-.1.6.2.3.8 1.3 1.6 2.1 1.1 1 2 1.3 2.3 1.4.3.1.5.1.6-.1l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.2 1.4z"/></svg>
+    <span><b>Me chama no WhatsApp</b><small>Toque aqui pra mandar mensagem</small></span>
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+  </a>
+  <div class="demo" id="demo" hidden>Prévia com dados de exemplo.</div>
+
+  <div class="tabs" role="tablist" aria-label="Seções do perfil">
+    <button type="button" role="tab" id="tab-corrida" aria-controls="pane-corrida" aria-selected="true">Corrida</button>
+    <button type="button" role="tab" id="tab-perfil" aria-controls="pane-perfil" aria-selected="false" tabindex="-1">Perfil</button>
+  </div>
+
+  <div id="pane-corrida" role="tabpanel" aria-labelledby="tab-corrida" style="display:flex;flex-direction:column;gap:30px"></div>
+
+  <div id="pane-perfil" role="tabpanel" aria-labelledby="tab-perfil" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div class="panel card-id">
+      <div class="ava" id="ava2" aria-hidden="true"></div>
+      <h2 id="pName"></h2>
+      <p class="hint" id="pUser"></p>
+    </div>
+    <dl class="facts" id="facts"></dl>
+    <p class="panel bio" id="bio" hidden></p>
+    <section id="tagsSec" hidden aria-labelledby="h-tags">
+      <h2 id="h-tags">No carro tem</h2>
+      <ul class="tags" id="tags"></ul>
+    </section>
+    <div class="links" id="pLinks"></div>
+  </div>
+
+  <footer>
+    <span id="bye">Boa volta pra casa. Cinto colocado, hein?</span>
+    <a class="made" href="/painel">É motorista? <b>Crie seu perfil</b></a>
+  </footer>
+</div>
+
+<div class="qrview" id="qrView" hidden role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+  <h3 id="qrTitle">Escaneia e <em>escolhe a música</em></h3>
+  <div id="qrBox"></div>
+  <p id="qrSub"></p>
+  <button type="button" id="closeQr">Fechar</button>
+</div>
+
+<!-- Blocos dos módulos -->
+<template id="t-musica">
+  <section aria-labelledby="h-music">
+    <h2 id="h-music">Tocando agora</h2>
+    <div data-control>
+      <div class="panel now" id="now"><div class="art"></div><div class="t"><div class="name">Nada tocando</div><div class="artist">Peça uma música abaixo</div></div></div>
+      <div class="ctrl" id="ctrl" style="margin-top:14px">
+        <button type="button" data-a="prev" aria-label="Música anterior"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button type="button" data-a="toggle" class="big" aria-label="Tocar ou pausar"><svg viewBox="0 0 24 24" id="playIco"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+        <button type="button" data-a="next" aria-label="Próxima música"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+      </div>
+      <label class="vol" for="vol" style="margin-top:14px"><span>Volume</span><input type="range" id="vol" min="0" max="100" step="5" value="50"><b id="volN">50%</b></label>
+      <div class="msg" id="ctrlMsg" role="status"></div>
+    </div>
+    <div class="panel mode" data-pedido>
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      <span>Escolha a música e ela vai direto pro celular do motorista. Ele coloca pra tocar assim que der.</span>
+    </div>
+    <div class="search">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input type="search" id="q" placeholder="Busca música ou artista" autocomplete="off" enterkeyhint="search" aria-label="Buscar música">
+    </div>
+    <div class="msg" id="songMsg" role="status"></div>
+    <div class="list" id="results"></div>
+  </section>
+</template>
+
+<template id="t-pix">
+  <section aria-labelledby="h-pix">
+    <h2 id="h-pix">Curtiu? Manda um Pix</h2>
+    <div class="chips" id="chips">
+      <button type="button" data-v="5">R$ 5</button><button type="button" data-v="10">R$ 10</button>
+      <button type="button" data-v="20">R$ 20</button><button type="button" data-v="0">Outro</button>
+    </div>
+    <input type="number" id="otherAmt" min="1" step="1" inputmode="decimal" placeholder="Valor em reais" aria-label="Outro valor" hidden>
+    <button class="primary" id="copyPix" type="button">Copiar Pix copia e cola</button>
+    <p class="hint">Abra o app do banco, escolha Pix copia e cola e cole o código.</p>
+    <div class="msg" id="pixMsg" role="status"></div>
+    <p class="key" id="pixKey"></p>
+  </section>
+</template>
+
+<template id="t-instagram">
+  <section aria-labelledby="h-social">
+    <h2 id="h-social">Bora se seguir</h2>
+    <div class="links" data-social></div>
+  </section>
+</template>
+
+<template id="t-links">
+  <section aria-labelledby="h-links">
+    <h2 id="h-links">Links</h2>
+    <div class="links" data-links></div>
+  </section>
+</template>
+
+<template id="t-pesquisa">
+  <section aria-labelledby="h-form">
+    <h2 id="h-form">Me ajuda a criar um app?</h2>
+    <p class="hint">Tô criando um app de corrida aqui da cidade. São 30 segundos.</p>
+    <form id="fb" class="panel" novalidate>
+      <fieldset class="q">
+        <legend>O que mais te irrita nos apps de corrida hoje?</legend>
+        <div class="opts" id="dores">
+          <button type="button" data-v="Preço alto">Preço alto</button><button type="button" data-v="Demora">Demora</button>
+          <button type="button" data-v="Cancelamento">Cancelamento</button><button type="button" data-v="Segurança">Segurança</button>
+          <button type="button" data-v="Preço dinâmico">Preço dinâmico</button><button type="button" data-v="Atendimento">Atendimento</button>
+        </div>
+      </fieldset>
+      <label class="q" for="ideia"><span>O que um app de corrida deveria ter e não tem?</span>
+        <textarea id="ideia" rows="3" maxlength="500" placeholder="Ex.: escolher o motorista, dividir a conta…"></textarea></label>
+      <fieldset class="q">
+        <legend>Você usaria um app de corrida feito aqui da cidade?</legend>
+        <div class="opts" id="usaria"><button type="button" data-v="Sim">Sim</button><button type="button" data-v="Talvez">Talvez</button><button type="button" data-v="Não">Não</button></div>
+      </fieldset>
+      <label class="q" for="nome"><span>Seu nome</span><input type="text" id="nome" maxlength="60" autocomplete="given-name"></label>
+      <label class="q" for="fone"><span>Seu WhatsApp</span><input type="tel" id="fone" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="(64) 9 0000-0000" required></label>
+      <label class="check" for="avisar"><input type="checkbox" id="avisar" checked> <span>Pode me avisar quando o app sair</span></label>
+      <button class="primary" type="submit" id="send">Enviar</button>
+      <p class="hint">Uso seu número só pra falar sobre o app. Nada de spam.</p>
+      <div class="msg" id="fbMsg" role="status"></div>
+    </form>
+    <div class="panel thanks" id="thanks" hidden>
+      <p><b>Valeu demais!</b> Acompanhe a criação do app no Instagram.</p>
+      <a class="primary" id="igFollow" href="#" target="_blank" rel="noopener">Seguir</a>
+    </div>
+  </section>
+</template>
+
+<script>
+(function(){
+  "use strict";
+  var P = /*DATA*/null;
+  var demo = !P;
+  if (demo) P = {
+    username:"augusto7cn", name:"Augusto", city:"Caldas Novas", car:"Onix prata", since:"2021",
+    bio:"Rodo de madrugada. Pode escolher a música à vontade.", tags:["Ar-condicionado","Carregador de celular","Água"],
+    avatar:"", bgImage:"", theme:{preset:"noite",accent:"",font:"poster",bg:"lobo",headline:"O som é *seu*",sub:"Escolhe a música, pula, pausa e aumenta o volume. Tá liberado."},
+    modules:["whatsapp","musica","pix","pesquisa","instagram"], instagram:"augusto7cn", whatsapp:"5564993056133", waMsg:"Oi Augusto, vim pelo QR da corrida!",
+    pix:{key:"+5564993056133",name:"AUGUSTO L ORDONHES",city:"CALDAS NOVAS"}, links:[], music:{mode:"control",control:true,service:"spotify"}
+  };
+
+  var THEMES = {
+    noite:   {bg:"#0c0e1a",panel:"#151829",line:"#2a2f4a",fg:"#eef0fa",muted:"#9097b8",accent:"#ffb347"},
+    grafite: {bg:"#111214",panel:"#1b1d21",line:"#30333a",fg:"#f2f2ef",muted:"#a0a3ab",accent:"#e4ff5c"},
+    floresta:{bg:"#0a1410",panel:"#13221b",line:"#25392e",fg:"#edf5ef",muted:"#93ad9e",accent:"#8be28f"},
+    vinho:   {bg:"#170b11",panel:"#24131b",line:"#3d212e",fg:"#f8eef2",muted:"#b896a3",accent:"#ff6b86"},
+    oceano:  {bg:"#06141a",panel:"#0e2029",line:"#1d3846",fg:"#e9f6fa",muted:"#88aab8",accent:"#3fd6ea"},
+    claro:   {bg:"#f4f2ec",panel:"#ffffff",line:"#dcd7cb",fg:"#18171c",muted:"#5f5c66",accent:"#d9480f"}
+  };
+  var FONTS = {
+    poster:  {family:'"Big Shoulders Display","Arial Narrow",sans-serif', css:"Big+Shoulders+Display:wght@800;900"},
+    redonda: {family:'"Fredoka",system-ui,sans-serif', css:"Fredoka:wght@600;700"},
+    classica:{family:'"Bodoni Moda",Georgia,serif', css:"Bodoni+Moda:opsz,wght@6..96,800"}
+  };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var api = function(a){ return "/api/p/"+encodeURIComponent(P.username)+"/"+a; };
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]}); }
+  function setMsg(id,text,kind){ var m=$(id); if(!m) return; m.textContent=text; m.className="msg "+(kind||""); }
+  function post(url,data){
+    return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)})
+      .then(function(r){ return r.json().catch(function(){return {}}).then(function(j){ return {ok:r.ok,j:j}; }); });
+  }
+  function fmtPhone(n){ n=String(n||"").replace(/\D/g,""); if(n.length===13) return "("+n.slice(2,4)+") "+n.slice(4,9)+"-"+n.slice(9); if(n.length===12) return "("+n.slice(2,4)+") "+n.slice(4,8)+"-"+n.slice(8); return n; }
+  function initials(n){ return String(n||"?").trim().charAt(0).toUpperCase(); }
+  var ICON = {
+    ig:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg>',
+    wa:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20.5l1.3-4.4A8.5 8.5 0 1 1 8 19.3z"/></svg>',
+    link:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>',
+    check:'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>'
+  };
+
+  // ---------- Tema ----------
+  function applyTheme(){
+    var t = P.theme||{}, th = THEMES[t.preset]||THEMES.noite, r=document.documentElement.style;
+    Object.keys(th).forEach(function(k){ r.setProperty("--"+k, th[k]); });
+    var acc = t.accent || th.accent; r.setProperty("--accent", acc);
+    var light = t.preset==="claro";
+    r.setProperty("--ink", light ? "#ffffff" : "#1b1206");
+    r.setProperty("--ok", light ? "#1f8a52" : "#5fd39a");
+    r.setProperty("--err", light ? "#c62828" : "#ff8a8a");
+    document.documentElement.style.colorScheme = light ? "light" : "dark";
+    document.querySelector('meta[name=theme-color]').content = th.bg;
+    var f = FONTS[t.font]||FONTS.poster;
+    r.setProperty("--display", f.family);
+    $("displayFont").href = "https://fonts.googleapis.com/css2?family="+f.css+"&display=swap";
+    document.body.classList.add("f-"+(t.font||"poster"));
+    var sc=$("scene");
+    if (t.bg==="lobo"){ sc.style.backgroundImage="url(/lobo.jpg)"; }
+    else if (t.bg==="foto" && P.bgImage){ sc.style.backgroundImage="url("+P.bgImage+")"; sc.classList.add("foto"); }
+    else sc.hidden = true;
+    if (light) sc.style.opacity = ".16";
+  }
+
+  function headlineHTML(s){ return esc(s||"").replace(/\*([^*]+)\*/g,"<em>$1</em>"); }
+
+  // ---------- Cabeçalho e perfil ----------
+  function fillHeader(){
+    [$("ava"),$("ava2")].forEach(function(el){
+      if (P.avatar) el.outerHTML = '<img class="ava" id="'+el.id+'" src="'+esc(P.avatar)+'" alt="">';
+      else el.textContent = initials(P.name);
+    });
+    $("whoName").textContent = P.name;
+    $("whoLine").textContent = ["@"+P.username, P.city].filter(Boolean).join(" · ");
+    $("headline").innerHTML = headlineHTML(P.theme.headline || P.name);
+    $("sub").textContent = P.theme.sub || "";
+    $("sub").hidden = !P.theme.sub;
+    var hasMusic = P.modules.indexOf("musica")>=0;
+    $("qrTitle").innerHTML = hasMusic ? "Escaneia e <em>escolhe a música</em>" : "Escaneia e <em>"+esc(P.name)+"</em>";
+    $("qrSub").textContent = ["Música","Pix","Instagram","WhatsApp"].filter(function(_,i){ return P.modules.indexOf(["musica","pix","instagram","whatsapp"][i])>=0; }).join(" · ");
+    if (P.whatsapp && P.modules.indexOf("whatsapp")>=0){
+      $("waTop").hidden=false;
+      $("waTop").href = "https://wa.me/"+P.whatsapp+(P.waMsg?"?text="+encodeURIComponent(P.waMsg):"");
+    }
+  }
+
+  function fillProfileTab(){
+    $("pName").textContent = P.name;
+    $("pUser").textContent = "@"+P.username;
+    var facts = [];
+    if (P.car) facts.push(["Carro",P.car]);
+    if (P.city) facts.push(["Cidade",P.city]);
+    if (P.since) { var y=new Date().getFullYear()-Number(P.since); facts.push(["Dirige desde", P.since+(y>0?" ("+y+(y===1?" ano)":" anos)"):"")]); }
+    $("facts").innerHTML = facts.map(function(f,i){ return '<div'+(facts.length%2 && i===facts.length-1?' class="wide"':'')+'><dt>'+esc(f[0])+'</dt><dd>'+esc(f[1])+'</dd></div>'; }).join("");
+    $("facts").hidden = !facts.length;
+    if (P.bio){ $("bio").textContent=P.bio; $("bio").hidden=false; }
+    if (P.tags && P.tags.length){ $("tagsSec").hidden=false; $("tags").innerHTML=P.tags.map(function(t){ return "<li>"+ICON.check+esc(t)+"</li>"; }).join(""); }
+    $("pLinks").innerHTML = socialHTML(true);
+  }
+
+  function socialHTML(both){
+    var out="";
+    if (P.instagram) out += '<a class="panel" href="https://instagram.com/'+encodeURIComponent(P.instagram)+'" target="_blank" rel="noopener">'+ICON.ig+'<span><b>Instagram</b><small>@'+esc(P.instagram)+'</small></span></a>';
+    if (P.whatsapp && (both || P.modules.indexOf("whatsapp")<0)) out += '<a class="panel" href="https://wa.me/'+P.whatsapp+'" target="_blank" rel="noopener">'+ICON.wa+'<span><b>WhatsApp</b><small>'+esc(fmtPhone(P.whatsapp))+'</small></span></a>';
+    else if (P.whatsapp) out += '<a class="panel" href="https://wa.me/'+P.whatsapp+'" target="_blank" rel="noopener">'+ICON.wa+'<span><b>WhatsApp</b><small>'+esc(fmtPhone(P.whatsapp))+'</small></span></a>';
+    return out;
+  }
+
+  // ---------- Módulos ----------
+  var builders = {
+    musica: initMusic, pix: initPix, pesquisa: initSurvey,
+    instagram: function(root){ var box=root.querySelector("[data-social]"); box.innerHTML=socialHTML(false); if(!box.innerHTML) root.firstElementChild.hidden=true; },
+    links: function(root){
+      var box=root.querySelector("[data-links]");
+      box.innerHTML=(P.links||[]).map(function(l){ var host=""; try{host=new URL(l.url).hostname.replace(/^www\./,"")}catch(e){} return '<a class="panel wide" href="'+esc(l.url)+'" target="_blank" rel="noopener">'+ICON.link+'<span><b>'+esc(l.label)+'</b><small>'+esc(host)+'</small></span></a>'; }).join("");
+      if(!box.innerHTML) root.firstElementChild.hidden=true;
+    }
+  };
+  function buildModules(){
+    var pane=$("pane-corrida");
+    P.modules.forEach(function(id){
+      var t=$("t-"+id); if(!t || !builders[id]) return;
+      if (id==="pix" && !P.pix) return;
+      var frag=t.content.cloneNode(true), holder=document.createElement("div");
+      holder.appendChild(frag); pane.appendChild(holder.firstElementChild);
+      builders[id](pane.lastElementChild);
+    });
+    if (!pane.children.length) pane.innerHTML='<p class="hint">Veja os dados do motorista na aba Perfil.</p>';
+  }
+
+  // Música
+  var playing=true;
+  function initMusic(root){
+    var control = P.music && P.music.mode==="control";
+    root.querySelector("[data-control]").hidden = !control;
+    root.querySelector("[data-pedido]").hidden = control;
+    if (control && !P.music.control){ $("ctrl").hidden=true; root.querySelector(".vol").hidden=true; }
+    if (!control) $("h-music").textContent = "Pede a sua";
+    var ICO_PAUSE='<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>', ICO_PLAY='<path d="M7 4v16l13-8z"/>';
+    function showNow(j){
+      $("now").innerHTML=(j.img?'<img class="art" src="'+esc(j.img)+'" alt="">':'<div class="art"></div>')+
+        '<div class="t"><div class="name">'+(j.playing?'<span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>':'')+esc(j.name)+'</div><div class="artist">'+esc(j.artists)+'</div></div>';
+      playing=!!j.playing; $("playIco").innerHTML=playing?ICO_PAUSE:ICO_PLAY;
+      if(typeof j.volume==="number" && document.activeElement!==$("vol")){ $("vol").value=j.volume; $("volN").textContent=j.volume+"%"; }
+    }
+    function loadNow(){
+      if (demo){ showNow({name:"Música de exemplo",artists:"Artista",playing:playing,volume:Number($("vol").value)}); return; }
+      if (document.hidden) return;
+      fetch(api("now")).then(function(r){return r.json()}).then(function(j){ if(j&&j.name) showNow(j); }).catch(function(){});
+    }
+    if (control){ loadNow(); setInterval(loadNow,8000); document.addEventListener("visibilitychange",loadNow); }
+    function command(a,v){
+      if (demo){ if(a==="play")playing=true; if(a==="pause")playing=false; loadNow(); return Promise.resolve(); }
+      return post(api("control"),{action:a,value:v}).then(function(x){ if(x.ok){ setMsg("ctrlMsg",""); setTimeout(loadNow,600); } else setMsg("ctrlMsg",x.j.error||"Não deu certo. Tente de novo.","err"); })
+        .catch(function(){ setMsg("ctrlMsg","Sem conexão. Tente de novo.","err"); });
+    }
+    $("ctrl").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return; var a=b.dataset.a; if(a==="toggle") a=playing?"pause":"play"; b.disabled=true; command(a).then(function(){ b.disabled=false; }); });
+    var vt; $("vol").addEventListener("input",function(){ var v=Number(this.value); $("volN").textContent=v+"%"; clearTimeout(vt); vt=setTimeout(function(){ command("volume",v); },300); });
+
+    var timer, found=[];
+    $("q").addEventListener("input",function(){ clearTimeout(timer); var q=this.value.trim(); if(q.length<2){ $("results").innerHTML=""; setMsg("songMsg",""); return; } timer=setTimeout(function(){ search(q); },350); });
+    function search(q){
+      if (demo){ render([{name:"Música de exemplo 1",artists:"Artista A",uri:"demo"},{name:"Música de exemplo 2",artists:"Artista B",uri:"demo"}]); return; }
+      setMsg("songMsg","Buscando…");
+      fetch(api("search")+"?q="+encodeURIComponent(q)).then(function(r){return r.json()}).then(function(j){
+        render(j.tracks||[]); setMsg("songMsg",(j.tracks||[]).length?"":"Nada encontrado. Tente outro nome.");
+      }).catch(function(){ setMsg("songMsg","A busca não respondeu. Tente de novo.","err"); });
+    }
+    function render(list){
+      found=list;
+      $("results").innerHTML=list.map(function(t,i){
+        return '<div class="track">'+(t.img?'<img class="art" src="'+esc(t.img)+'" alt="" loading="lazy">':'<div class="art"></div>')+
+          '<div class="t"><div class="name">'+esc(t.name)+'</div><div class="artist">'+esc(t.artists)+'</div></div>'+
+          '<button class="add" type="button" data-i="'+i+'">Pedir</button></div>';
+      }).join("");
+    }
+    $("results").addEventListener("click",function(e){
+      var b=e.target.closest(".add"); if(!b||b.disabled) return;
+      var t=found[Number(b.dataset.i)]; b.disabled=true; b.textContent="…";
+      var done=function(){ b.textContent=control?"Na fila":"Pedido"; b.classList.add("done"); setMsg("songMsg","“"+t.name+"” "+(control?"entrou na fila.":"foi pro motorista."),"ok"); };
+      var fail=function(m){ b.disabled=false; b.textContent="Pedir"; setMsg("songMsg",m,"err"); };
+      if (demo){ setTimeout(done,350); return; }
+      (control ? post(api("queue"),{uri:t.uri}) : post(api("pedido"),{name:t.name,artists:t.artists,img:t.img,link:t.link}))
+        .then(function(x){ x.ok?done():fail(x.j.error||"Não deu pra pedir. Tente outra."); }).catch(function(){ fail("Sem conexão. Tente de novo."); });
+    });
+  }
+
+  // Pix (BR Code estático com valor)
+  function initPix(){
+    var amount=10;
+    function tlv(id,v){ return id+String(v.length).padStart(2,"0")+v; }
+    function ascii(s,max){ return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^A-Za-z0-9 .@_-]/g,"").toUpperCase().slice(0,max); }
+    function crc16(s){ var c=0xFFFF; for(var i=0;i<s.length;i++){ c^=s.charCodeAt(i)<<8; for(var k=0;k<8;k++){ c=(c&0x8000)?((c<<1)^0x1021):(c<<1); c&=0xFFFF; } } return c.toString(16).toUpperCase().padStart(4,"0"); }
+    function brcode(v){
+      var p=tlv("00","01")+tlv("26",tlv("00","br.gov.bcb.pix")+tlv("01",P.pix.key))+tlv("52","0000")+tlv("53","986")+
+        (v>0?tlv("54",v.toFixed(2)):"")+tlv("58","BR")+tlv("59",ascii(P.pix.name,25)||"MOTORISTA")+tlv("60",ascii(P.pix.city,15)||"BRASIL")+tlv("62",tlv("05","***"))+"6304";
+      return p+crc16(p);
+    }
+    function press(v){ Array.prototype.forEach.call($("chips").children,function(b){ b.setAttribute("aria-pressed",String(b.dataset.v===String(v))); }); $("otherAmt").hidden=v!==0; if(v===0) $("otherAmt").focus(); }
+    $("chips").addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return; amount=Number(b.dataset.v); press(amount); });
+    var k=P.pix.key; $("pixKey").textContent="Chave Pix: "+(/^\+55\d{10,11}$/.test(k)?fmtPhone(k):k);
+    $("copyPix").addEventListener("click",function(){
+      var v=amount===0?Number(String($("otherAmt").value).replace(",",".")):amount;
+      if(amount===0 && !(v>0)){ setMsg("pixMsg","Digite um valor para a gorjeta.","err"); return; }
+      var code=brcode(v), ok=function(){ setMsg("pixMsg","Copiado. Agora é só colar no app do banco. Valeu!","ok"); };
+      if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).then(ok).catch(function(){ fallback(code); }); else fallback(code);
+    });
+    function fallback(code){ $("pixKey").textContent=code; var r=document.createRange(); r.selectNodeContents($("pixKey")); var s=getSelection(); s.removeAllRanges(); s.addRange(r); setMsg("pixMsg","Código selecionado. Toque em Copiar no seu celular.","ok"); }
+    press(amount);
+  }
+
+  // Questionário
+  function initSurvey(){
+    function toggle(id,single){ $(id).addEventListener("click",function(e){ var b=e.target.closest("button"); if(!b) return; if(single) Array.prototype.forEach.call(this.children,function(x){ if(x!==b) x.setAttribute("aria-pressed","false"); }); b.setAttribute("aria-pressed",String(b.getAttribute("aria-pressed")!=="true")); }); }
+    toggle("dores",false); toggle("usaria",true);
+    function picked(id){ return Array.prototype.filter.call($(id).children,function(b){ return b.getAttribute("aria-pressed")==="true"; }).map(function(b){ return b.dataset.v; }); }
+    if (P.instagram){ $("igFollow").href="https://instagram.com/"+encodeURIComponent(P.instagram); $("igFollow").textContent="Seguir @"+P.instagram; }
+    else $("igFollow").hidden=true;
+    var key="respondeu:"+P.username;
+    try{ if(localStorage.getItem(key)){ $("fb").hidden=true; $("thanks").hidden=false; } }catch(e){}
+    $("fb").addEventListener("submit",function(e){
+      e.preventDefault();
+      var d={dores:picked("dores"),ideia:$("ideia").value.trim(),usaria:picked("usaria")[0]||"",nome:$("nome").value.trim(),avisar:$("avisar").checked,fone:$("fone").value.trim()};
+      if(!d.dores.length && !d.ideia && !d.usaria){ setMsg("fbMsg","Responda pelo menos uma pergunta.","err"); return; }
+      if(d.fone.replace(/\D/g,"").length<10){ setMsg("fbMsg","Coloque seu WhatsApp com DDD.","err"); $("fone").focus(); return; }
+      var finish=function(){ try{localStorage.setItem(key,"1")}catch(e){} $("fb").hidden=true; $("thanks").hidden=false; };
+      if(demo){ finish(); return; }
+      $("send").disabled=true; setMsg("fbMsg","Enviando…");
+      post(api("feedback"),d).then(function(x){ if(x.ok) finish(); else { $("send").disabled=false; setMsg("fbMsg",x.j.error||"Não deu pra enviar. Tente de novo.","err"); } })
+        .catch(function(){ $("send").disabled=false; setMsg("fbMsg","Sem conexão. Tente de novo.","err"); });
+    });
+  }
+
+  // ---------- Abas ----------
+  var tabs=[$("tab-corrida"),$("tab-perfil")];
+  function select(i){
+    tabs.forEach(function(t,j){ t.setAttribute("aria-selected",String(i===j)); t.tabIndex=i===j?0:-1; $(t.getAttribute("aria-controls")).hidden=i!==j; });
+  }
+  tabs.forEach(function(t,i){
+    t.addEventListener("click",function(){ select(i); });
+    t.addEventListener("keydown",function(e){ if(e.key==="ArrowRight"||e.key==="ArrowLeft"){ var n=(i+1)%2; select(n); tabs[n].focus(); } });
+  });
+
+  // ---------- QR ----------
+  var lock=null;
+  $("showQr").addEventListener("click",function(){
+    var link=demo?"https://corrida.augusto7.workers.dev":location.origin+"/"+P.username;
+    if (!demo && location.pathname==="/") link=location.origin;
+    try{ var q=qrcode(0,"M"); q.addData(link); q.make(); $("qrBox").innerHTML=q.createSvgTag({cellSize:8,margin:2,scalable:true}); }
+    catch(e){ $("qrBox").textContent=link.replace(/^https?:\/\//,""); }
+    $("qrView").hidden=false; $("closeQr").focus();
+    try{ if(navigator.wakeLock) navigator.wakeLock.request("screen").then(function(l){lock=l}).catch(function(){}); }catch(e){}
+  });
+  function closeQr(){ $("qrView").hidden=true; try{ if(lock){ lock.release(); lock=null; } }catch(e){} $("showQr").focus(); }
+  $("closeQr").addEventListener("click",closeQr);
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape" && !$("qrView").hidden) closeQr(); });
+
+  applyTheme(); fillHeader(); fillProfileTab(); buildModules();
+  if (demo) $("demo").hidden=false;
+})();
+</script>
+</body>
+</html>

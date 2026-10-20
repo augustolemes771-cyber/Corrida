@@ -1,8 +1,17 @@
 name = "corrida"
-main = "worker.js"
+main = "src/worker.js"
 compatibility_date = "2026-09-01"
 
-# Banco das respostas do questionário (o Cloudflare cria sozinho no deploy)
+# Arquivos fixos (foto do lobo, ícones)
+[assets]
+directory = "./public"
+
+# Contas, perfis, pedidos e respostas (o Cloudflare cria sozinho no deploy)
+[[d1_databases]]
+binding = "DB"
+database_name = "corrida"
+
+# Imagens dos perfis e dados temporários (já existia: respostas antigas)
 [[kv_namespaces]]
 binding = "RESPOSTAS"
 
@@ -11,8 +20,9 @@ type = "Text"
 globs = ["**/*.html"]
 fallthrough = true
 
-# ---- Seus dados ----
+# ---- Dados do dono (usados só para criar a conta dele na primeira vez) ----
 [vars]
+OWNER_USERNAME = "augusto7cn"        # entra no painel com este usuário e a senha ADMIN_PASSWORD
 SPOTIFY_CLIENT_ID = "b27a49615bcc46edabd0f9c0830a3ded"
 DRIVER_NAME = "Augusto"
 INSTAGRAM = "augusto7cn"
@@ -21,8 +31,6 @@ PIX_KEY = "+5564993056133"           # chave Pix = celular
 PIX_NAME = "AUGUSTO L ORDONHES"      # até 25 letras, sem acento
 PIX_CITY = "CALDAS NOVAS"            # até 15 letras, sem acento
 
-# Segredos (NÃO colocar aqui). Rode cada um:
-
-#   npx wrangler secret put SPOTIFY_CLIENT_SECRET
-#   npx wrangler secret put ADMIN_PASSWORD
-#   npx wrangler secret put SPOTIFY_REFRESH_TOKEN   (depois do /login)
+# Segredos (NÃO colocar aqui), já cadastrados no Cloudflare:
+#   SPOTIFY_CLIENT_SECRET
+#   ADMIN_PASSWORD
