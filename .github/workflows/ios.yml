@@ -1,0 +1,51 @@
+# Monta o app de iPhone SEM assinatura (.ipa) pra instalar com o Sideloadly usando o Apple ID de cada um.
+# Download: releases/download/ios/driver-hub.ipa
+name: App iPhone
+
+on:
+  push:
+    branches: [main]
+    paths: ["android-app/www/**", "android-app/package.json", "android-app/capacitor.config.json", ".github/workflows/ios.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: android-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci || npm install
+      - name: Criar projeto iOS
+        run: |
+          npx cap add ios
+          P=ios/App/App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string 'O Driver Hub usa sua localização pra mostrar você no mapa dos motoristas enquanto você está online.'" $P
+          /usr/libexec/PlistBuddy -c "Add :NSLocationAlwaysAndWhenInUseUsageDescription string 'Com o modo online ligado, o Driver Hub continua mostrando sua posição pros motoristas mesmo com a tela apagada.'" $P
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" $P
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string location" $P
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'Driver Hub'" $P || true
+          npx cap sync ios
+      - name: Montar .ipa sem assinatura
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -archivePath build/App.xcarchive \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" archive | tail -20
+          mkdir -p Payload
+          cp -R build/App.xcarchive/Products/Applications/App.app Payload/
+          zip -qry driver-hub.ipa Payload
+          ls -la driver-hub.ipa
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios
+          name: "Driver Hub iPhone (teste, Sideloadly)"
+          body: "Versão de teste ${{ github.run_number }}, sem assinatura. Instale com o Sideloadly usando o seu Apple ID."
+          make_latest: false
+          files: android-app/driver-hub.ipa
