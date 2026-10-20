@@ -188,9 +188,8 @@ details.howto ol b{color:var(--fg)}
 .pvload{position:absolute;right:10px;top:10px;font-size:12px;font-weight:700;background:var(--fg);color:var(--bg);border-radius:8px;padding:4px 8px}
 .pvbar{display:flex;align-items:center;gap:18px;padding:10px 2px 12px}
 .pvlabel{flex:1;display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
-.live{width:8px;height:8px;border-radius:50%;background:var(--ok);animation:live 1.6s ease-in-out infinite}
-@keyframes live{50%{opacity:.35}}
-@media (prefers-reduced-motion:reduce){.live{animation:none}.pvscreen{transition:none}}
+.live{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+@media (prefers-reduced-motion:reduce){.pvscreen{transition:none}}
 @media (min-width:900px){
   main.wide{max-width:1040px}
   #v-pagina:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:32px;align-items:start}
