@@ -125,9 +125,10 @@ async function musicState(env, userId, p) {
   return { mode: connected ? "control" : "pedido", control: connected && p.music.control, service: p.music.service };
 }
 
-async function renderProfile(env, user, url) {
-  const p = await getProfile(env, user.id);
+async function renderProfile(env, user, url, draft) {
+  const p = draft || (await getProfile(env, user.id));
   const data = publicProfile(user, p, await musicState(env, user.id, p));
+  if (draft) data.preview = true;
   data.owner = user.username === String(env.OWNER_USERNAME || "").toLowerCase();
   const title = `${data.name} · Driver Hub`;
   const desc = data.modules.includes("musica") ? `Escolha a música da corrida com ${data.name}.` : `Perfil de ${data.name} no Driver Hub.`;
@@ -307,6 +308,12 @@ async function driverApi(req, env, url, p, me, secure) {
       pendingRequests: pend?.n || 0,
       feedbackCount: fb?.n || 0,
     });
+  }
+
+  // Prévia ao vivo: mostra o perfil com as mudanças ainda não salvas
+  if (p === "/api/previa" && m === "POST") {
+    const draft = mergeProfile(await getProfile(env, me.id), await body(req));
+    return renderProfile(env, me, url, draft);
   }
 
   if (p === "/api/perfil" && m === "POST") {

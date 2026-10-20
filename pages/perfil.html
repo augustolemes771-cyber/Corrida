@@ -478,7 +478,7 @@ footer a{color:var(--muted);text-underline-offset:3px}
       if (document.hidden) return;
       fetch(api("now")).then(function(r){return r.json()}).then(function(j){ if(j&&j.name) showNow(j); }).catch(function(){});
     }
-    if (control){ loadNow(); setInterval(loadNow,8000); document.addEventListener("visibilitychange",loadNow); }
+    if (control){ loadNow(); if(!P.preview){ setInterval(loadNow,8000); document.addEventListener("visibilitychange",loadNow); } }
     function command(a,v){
       if (demo){ if(a==="play")playing=true; if(a==="pause")playing=false; loadNow(); return Promise.resolve(); }
       return post(api("control"),{action:a,value:v}).then(function(x){ if(x.ok){ setMsg("ctrlMsg",""); setTimeout(loadNow,600); } else setMsg("ctrlMsg",x.j.error||"Não deu certo. Tente de novo.","err"); })
@@ -588,6 +588,8 @@ footer a{color:var(--muted);text-underline-offset:3px}
   applyTheme(); fillHeader(); fillProfileTab(); buildModules();
   if (demo) $("demo").hidden=false;
   if (P.owner) $("adminLink").hidden=false;
+  // Dentro da prévia do painel, links não navegam
+  if (P.preview) document.addEventListener("click",function(e){ if(e.target.closest("a")) e.preventDefault(); },true);
 })();
 </script>
 </body>
