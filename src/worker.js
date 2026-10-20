@@ -35,6 +35,23 @@ export default {
 };
 
 const ONLINE_MS = 15 * 60 * 1000;     // online = mandou sinal nos últimos 15 min
+const PRICE_PER_KM = 300;             // R$ 3,00 por km, em centavos
+// Motoristas online que aceitam chamados abertos do app (não os que só pegam corrida particular)
+const APP_DRIVERS_ONLINE = `SELECT COUNT(*) n FROM driver_locations l LEFT JOIN profiles p ON p.user_id=l.user_id
+  WHERE l.online=1 AND l.at>? AND COALESCE(json_extract(p.data,'$.rideMode'),'app')<>'particular'`;
+
+// Distância de carro em km (OSRM). Sem resposta, linha reta x 1,3.
+async function routeKm(a, b) {
+  try {
+    const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`, { signal: AbortSignal.timeout(5000) });
+    const j = await r.json();
+    if (j.routes?.[0]) return j.routes[0].distance / 1000;
+  } catch {}
+  const R = 6371, rad = (x) => (x * Math.PI) / 180;
+  const h = Math.sin(rad(b.lat - a.lat) / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(rad(b.lng - a.lng) / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h)) * 1.3;
+}
+const point = (o) => { const lat = Number(o?.lat), lng = Number(o?.lng); return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null; };
 const OPEN_CALL_MS = 10 * 60 * 1000;  // chamado aberto vale 10 min
 
 async function route(req, env) {
@@ -54,11 +71,11 @@ async function route(req, env) {
   // Primeira tela do app Android: já logado vai direto pra sua área; senão escolhe motorista ou passageiro
   if (p === "/app") {
     const me = await currentUser(env, req);
-    if (me) return Response.redirect(url.origin + (me.role === "passenger" ? "/motoristas" : "/painel"), 302);
+    if (me) return Response.redirect(url.origin + (me.role === "passenger" ? "/solicitar" : "/painel"), 302);
     return htmlResponse(APP, 200, { "cache-control": "no-store" });
   }
   if (p === "/painel" || p === "/entrar" || p === "/cadastro") return htmlResponse(PAINEL, 200, { "cache-control": "no-store" });
-  if (p === "/motoristas" || p === "/mapa" || p === "/conta")
+  if (p === "/solicitar" || p === "/motoristas" || p === "/mapa" || p === "/conta")
     return htmlResponse(REDE.replace("/*CITY*/null", JSON.stringify(cityOf(env))), 200, { "cache-control": "no-store" });
   if (p === "/editar") {
     const me = await currentUser(env, req);
@@ -118,18 +135,19 @@ async function route(req, env) {
   // ---------- Dados públicos (passageiro, sem conta) ----------
   if (p === "/api/publico/motoristas" && m === "GET") {
     const { results } = await env.DB.prepare(
-      `SELECT u.id,u.username,p.data FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role IN ('driver','admin') ORDER BY u.id`
-    ).all();
+      `SELECT u.id,u.username,p.data,(l.online=1 AND l.at>?) AS online FROM users u JOIN profiles p ON p.user_id=u.id
+       LEFT JOIN driver_locations l ON l.user_id=u.id WHERE u.role IN ('driver','admin') ORDER BY u.id`
+    ).bind(Date.now() - ONLINE_MS).all();
     return json({
       motoristas: results.map((r) => {
         const d = JSON.parse(r.data);
         return {
           username: r.username, name: d.name || r.username, city: d.city || "", car: d.car || "", since: d.since || "",
           avatar: d.hasAvatar ? `/img/${r.id}/avatar?v=${d.avatarVersion}` : "", tags: (d.tags || []).length,
-          accent: d.theme?.accent || "", preset: d.theme?.preset || "noite",
+          accent: d.theme?.accent || "", preset: d.theme?.preset || "noite", online: !!r.online,
         };
       }),
-    }, 200, { "cache-control": "public, max-age=30" });
+    }, 200, { "cache-control": "no-store" });
   }
   if (p === "/api/publico/lugares" && m === "GET") {
     const list = (await listPlaces(env, ["lugar"], null)).filter((x) => LUGAR[x.category]?.passenger);
@@ -137,19 +155,31 @@ async function route(req, env) {
   }
 
   // ---------- Chamado aberto (passageiro chama qualquer motorista online) ----------
+  if (p === "/api/preco" && m === "POST") {
+    if (tooMany("preco" + ip(req), 40)) return json({ error: "Muitas consultas. Espere um pouco." }, 429);
+    const b = await body(req), from = point(b.from), to = point(b.to);
+    if (!from || !to) return json({ error: "Escolha a saída e o destino." }, 400);
+    const km = await routeKm(from, to);
+    return json({ km, price_cents: Math.round(km * PRICE_PER_KM), online: (await env.DB.prepare(APP_DRIVERS_ONLINE).bind(Date.now() - ONLINE_MS).first()).n });
+  }
+
   if (p === "/api/chamar" && m === "POST") {
     if (tooMany("cham" + ip(req), 5)) return json({ error: "Você já chamou. Espere a resposta de um motorista." }, 429);
     const b = await body(req);
     const name = cut(b.name, 40), phone = digits(b.phone).slice(0, 13), note = cut(b.note, 160);
     if (!name) return json({ error: "Coloque seu nome.", field: "name" }, 400);
     if (phone.length < 10) return json({ error: "Coloque seu WhatsApp com DDD.", field: "phone" }, 400);
-    const on = await env.DB.prepare(`SELECT COUNT(*) n FROM driver_locations WHERE online=1 AND at>?`).bind(Date.now() - ONLINE_MS).first();
+    const from = point(b), to = point(b.dest);
+    if (!from) return json({ error: "Não deu pra pegar o ponto de saída. Marque no mapa.", field: "from" }, 400);
+    if (!to) return json({ error: "Escolha o destino.", field: "dest" }, 400);
+    const on = await env.DB.prepare(APP_DRIVERS_ONLINE).bind(Date.now() - ONLINE_MS).first();
     if (!on.n) return json({ error: "Nenhum motorista online agora. Tente de novo daqui a pouco." }, 409);
-    const lat = Number(b.lat), lng = Number(b.lng), ok = Number.isFinite(lat) && Number.isFinite(lng);
+    const km = await routeKm(from, to), price = Math.round(km * PRICE_PER_KM);
     const token = crypto.randomUUID();
-    const r = await env.DB.prepare(`INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at,token) VALUES(0,?,?,?,?,?,?,?)`)
-      .bind(name, phone, note, ok ? lat : null, ok ? lng : null, Date.now(), token).run();
-    return json({ ok: true, id: r.meta.last_row_id, token, online: on.n });
+    const r = await env.DB.prepare(
+      `INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at,token,dest_lat,dest_lng,dest_name,pickup_name,km,price_cents) VALUES(0,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(name, phone, note, from.lat, from.lng, Date.now(), token, to.lat, to.lng, cut(b.dest.name, 120), cut(b.from_name, 120), km, price).run();
+    return json({ ok: true, id: r.meta.last_row_id, token, online: on.n, km, price_cents: price });
   }
   if (p === "/api/chamado" && (m === "GET" || m === "POST")) {
     const id = Number(url.searchParams.get("id")), t = url.searchParams.get("t") || "";
@@ -160,7 +190,7 @@ async function route(req, env) {
       return json({ ok: true });
     }
     const status = row.status === "novo" && row.created_at < Date.now() - OPEN_CALL_MS ? "expirou" : row.status;
-    const out = { status };
+    const out = { status, km: row.km, price_cents: row.price_cents, dest_name: row.dest_name || "" };
     if (row.driver_id && (status === "aceito" || status === "concluido")) {
       const u = await env.DB.prepare(`SELECT username FROM users WHERE id=?`).bind(row.driver_id).first();
       const d = await getProfile(env, row.driver_id);
@@ -631,7 +661,8 @@ async function driverApi(req, env, url, p, me, secure) {
   // ---- Chamados de passageiros
   if (p === "/api/chamados" && m === "GET") {
     const now = Date.now();
-    const online = await env.DB.prepare(`SELECT 1 FROM driver_locations WHERE user_id=? AND online=1 AND at>?`).bind(me.id, now - ONLINE_MS).first();
+    const online = await env.DB.prepare(`SELECT 1 FROM driver_locations WHERE user_id=? AND online=1 AND at>?`).bind(me.id, now - ONLINE_MS).first()
+      && (await getProfile(env, me.id)).rideMode !== "particular";
     const { results } = await env.DB.prepare(
       `SELECT * FROM ride_calls WHERE (driver_id=? AND created_at>?) OR (?=1 AND driver_id=0 AND status='novo' AND created_at>?) ORDER BY id DESC LIMIT 30`
     ).bind(me.id, now - 3 * 3600 * 1000, online ? 1 : 0, now - OPEN_CALL_MS).all();

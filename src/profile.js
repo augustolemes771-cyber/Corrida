@@ -73,6 +73,8 @@ export function mergeProfile(saved, input) {
   text("pixKey", 77);
   if ("instagram" in i) p.instagram = cut(i.instagram, 30).replace(/^@/, "").replace(/[^A-Za-z0-9._]/g, "");
   if ("whatsapp" in i) p.whatsapp = digits(i.whatsapp).slice(0, 15);
+  // app = recebe os chamados abertos do app; particular = só quem chama pela página dele ou pelo WhatsApp
+  if ("rideMode" in i) p.rideMode = i.rideMode === "particular" ? "particular" : "app";
   if ("since" in i && !/^(19|20)\d\d$/.test(p.since)) p.since = "";
   if (Array.isArray(i.tags)) p.tags = [...new Set(i.tags.filter((t) => TAGS.includes(t)))];
   if (Array.isArray(i.links))

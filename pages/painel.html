@@ -177,8 +177,26 @@ body.home #layersBtn{bottom:calc(var(--sheet) + 80px + env(safe-area-inset-botto
 body.home #markBtn{bottom:calc(var(--sheet) + 144px + env(safe-area-inset-bottom,0px))}
 body.home.layers #layersBtn{background:var(--accent);color:var(--ink)}
 .hsheet{position:absolute;left:0;right:0;bottom:0;z-index:510;background:#111215;border-radius:20px 20px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.55);
-  grid-template-columns:56px 1fr 56px;align-items:center;height:calc(var(--sheet) + env(safe-area-inset-bottom,0px));padding:8px 10px env(safe-area-inset-bottom,0px);overflow:hidden}
+  grid-template-columns:1fr;padding:8px 10px env(safe-area-inset-bottom,0px);overflow:hidden;touch-action:none;transition:transform .2s ease-out;user-select:none;-webkit-user-select:none}
+.hrow{display:grid;grid-template-columns:56px 1fr 56px;align-items:center;height:var(--sheet)}
+.hmore{display:flex;flex-direction:column;gap:12px;max-height:0;overflow:hidden;transition:max-height .25s ease-out,padding .25s;padding:0 8px}
+.hsheet.open .hmore{max-height:260px;padding:4px 8px 16px}
+.hmore p{margin:0;color:var(--muted);font-size:15px;text-align:center}
+.hmore .offbtn{min-height:56px;border-radius:14px;border:0;background:#e5484d;color:#fff;font-size:18px;font-weight:800}
+body.home.sheetopen #locBtn,body.home.sheetopen #layersBtn,body.home.sheetopen #markBtn{display:none}
+.modeopt{display:flex;gap:14px;align-items:flex-start;text-align:left;width:100%;border:1.5px solid var(--line);background:var(--panel);border-radius:16px;padding:16px;margin-bottom:10px}
+.modeopt[aria-pressed=true]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--panel))}
+.modeopt .rad{width:22px;height:22px;border-radius:50%;border:2px solid var(--muted);flex:none;margin-top:2px;display:grid;place-items:center}
+.modeopt[aria-pressed=true] .rad{border-color:var(--accent)}
+.modeopt[aria-pressed=true] .rad::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--accent)}
+.modeopt b{display:block;font-size:17px}
+.modeopt small{display:block;color:var(--muted);font-size:14px;margin-top:2px}
+.offer-price{display:flex;align-items:baseline;gap:10px;font-weight:800}
+.offer-price b{font-family:var(--display);font-weight:900;font-size:44px;line-height:.9;color:var(--ok)}
+.offer-price span{color:var(--muted);font-size:15px}
+.hstate.part{color:var(--accent);font-size:20px}
 .hsheet::before{content:"";position:absolute;left:50%;top:7px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#3a3d48}
+.hsheet.on::before,.hsheet.pt::before{background:#6a6e7c}
 .hsbtn{position:relative;width:52px;height:52px;border:0;background:none;color:var(--fg);display:grid;place-items:center;padding:0}
 .hsbtn svg.i{width:28px;height:28px}
 .hsbtn[hidden]{display:grid!important;visibility:hidden}
@@ -578,9 +596,15 @@ details.howto ol b{color:var(--fg)}
       <button class="mfab hui" type="button" id="layersBtn" aria-label="O que mostrar no mapa" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
       <button class="hgo hui" type="button" id="goBtn">Ficar<br>online</button>
       <div class="hsheet hui" id="hsheet">
-        <button class="hsbtn" type="button" id="hsOff" aria-label="Ficar offline" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 7.3a8 8 0 1 0 11.4 0"/></svg></button>
-        <div class="hstate off" id="hsState" role="status" aria-live="polite">Você está offline</div>
-        <button class="hsbtn" type="button" id="hsCalls" aria-label="Chamados"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="badge" id="callBadge" hidden></span></button>
+        <div class="hrow">
+          <button class="hsbtn" type="button" id="hsPref" aria-label="Preferências de corrida"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg></button>
+          <div class="hstate off" id="hsState" role="status" aria-live="polite">Você está offline</div>
+          <button class="hsbtn" type="button" id="hsCalls" aria-label="Chamados"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="badge" id="callBadge" hidden></span></button>
+        </div>
+        <div class="hmore" id="hsMore">
+          <p id="hsMoreTxt"></p>
+          <button class="offbtn" type="button" id="hsOff">Ficar offline</button>
+        </div>
         <div class="hline" aria-hidden="true"></div>
       </div>
       <button class="mfab" type="button" id="locBtn" aria-label="Mostrar onde estou"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg></button>
@@ -688,8 +712,10 @@ details.howto ol b{color:var(--fg)}
     <div class="offer-body">
       <div class="offer-tag" id="ofTag">Corrida particular · Driver Hub</div>
       <div class="offer-eta" id="ofEta">Calculando rota…</div>
+      <div class="offer-price" id="ofPrice" hidden><b id="ofPriceVal"></b><span id="ofPriceKm"></span></div>
       <div class="offer-who"><span class="ava" id="ofAva"></span><b id="ofName"></b></div>
       <div class="offer-row"><span class="dotp"></span><div><small>Embarque</small><b id="ofAddr">Buscando endereço…</b></div></div>
+      <div class="offer-row" id="ofDestRow" hidden><span class="dotp" style="background:var(--ok)"></span><div><small>Destino</small><b id="ofDest"></b></div></div>
       <p class="offer-note" id="ofNote" hidden></p>
       <div class="offer-timer"><i id="ofBar"></i></div>
       <button class="btn primary block offer-accept" type="button" id="ofAccept">Aceitar</button>
@@ -1013,6 +1039,7 @@ details.howto ol b{color:var(--fg)}
       $("callList").innerHTML=vis.map(function(c){
         var fone=String(c.phone||"").replace(/^55(?=\d{10,11}$)/,""), wa="https://wa.me/55"+fone+"?text="+encodeURIComponent("Oi "+c.name+", aqui é "+me+" do Driver Hub. "+(c.status==="aceito"?"Tô indo te buscar!":"Vi seu chamado."));
         return '<div class="slot" data-call="'+c.id+'"><div class="row between"><b>'+esc(c.name)+'</b><span class="tagline '+(c.status==="aceito"?"ok":"warn")+'">'+(c.status==="aceito"?"Aceito":c.aberto?"Aberto pra todos":"Novo")+' · '+ago(c.created_at)+'</span></div>'+
+          (c.price_cents?'<span><b style="color:var(--ok)">'+DHMap.money(c.price_cents)+'</b> · '+String(c.km.toFixed(1)).replace(".",",")+' km'+(c.dest_name?' · até '+esc(c.dest_name):'')+'</span>':'')+
           (c.note?'<span>“'+esc(c.note)+'”</span>':'')+
           '<div class="row" style="flex-wrap:wrap;gap:8px">'+
           (c.status==="novo"?'<button class="btn sm primary" type="button" data-ca="aceitar">Aceitar</button><button class="btn sm danger" type="button" data-ca="recusar">Recusar</button>':'<button class="btn sm" type="button" data-ca="concluir">Concluir</button>')+
@@ -1038,7 +1065,9 @@ details.howto ol b{color:var(--fg)}
   }
   function showOffer(c){
     offerCall=c; beep();
-    $("ofTag").textContent=c.aberto?"Chamado aberto · quem aceitar primeiro leva":"Corrida particular · Driver Hub";
+    $("ofTag").textContent=c.aberto?"Corrida pelo app · quem aceitar primeiro leva":"Corrida particular · Driver Hub";
+    $("ofPrice").hidden=!c.price_cents; if(c.price_cents){ $("ofPriceVal").textContent=DHMap.money(c.price_cents); $("ofPriceKm").textContent="corrida de "+String(c.km.toFixed(1)).replace(".",",")+" km"; }
+    $("ofDestRow").hidden=!c.dest_name&&c.dest_lat==null; $("ofDest").textContent=c.dest_name||"Ponto marcado no mapa";
     $("ofName").textContent=c.name; $("ofAva").textContent=(c.name||"?").charAt(0).toUpperCase();
     $("ofNote").hidden=!c.note; $("ofNote").textContent=c.note?"“"+c.note+"”":"";
     $("ofEta").textContent=c.lat!=null?"Calculando rota…":"Sem localização"; $("ofAddr").textContent=c.lat!=null?"Buscando endereço…":(c.note||"Combine pelo WhatsApp");
@@ -1048,7 +1077,9 @@ details.howto ol b{color:var(--fg)}
     offerLayer.clearLayers();
     if(c.lat!=null){
       var pick={lat:c.lat,lng:c.lng}; DHMap.pinMarker(pick.lat,pick.lng).addTo(offerLayer); offerMap.setView([pick.lat,pick.lng],15);
-      DHMap.addr(pick).then(function(a){ if(offerCall===c) $("ofAddr").textContent=a||"Ponto marcado no mapa"; });
+      if(c.dest_lat!=null) DHMap.pinMarker(c.dest_lat,c.dest_lng,"#5fd39a").addTo(offerLayer);
+      if(c.pickup_name) $("ofAddr").textContent=c.pickup_name;
+      else DHMap.addr(pick).then(function(a){ if(offerCall===c) $("ofAddr").textContent=a||"Ponto marcado no mapa"; });
       myPos().then(function(me){
         if(!me||offerCall!==c){ $("ofEta").textContent="Passageiro no mapa"; return; }
         DHMap.carMarker(me.lat,me.lng).addTo(offerLayer);
@@ -1362,15 +1393,45 @@ details.howto ol b{color:var(--fg)}
   // Faixa de baixo da tela inicial: offline, procurando (piscando) ou indo buscar alguém
   var HC={indo:null};
   function renderHomeBar(){
-    var st=$("hsState"), on=ON.on;
+    var st=$("hsState"), on=ON.on, part=S.saved&&S.saved.rideMode==="particular";
     document.body.classList.toggle("online",on);
-    $("hsheet").classList.toggle("on",on&&!HC.indo);
-    $("hsOff").hidden=!on;
-    st.className="hstate "+(HC.indo?"indo":on?"busca":"off");
-    st.textContent=HC.indo?"Indo buscar "+HC.indo.name:on?"Procurando":"Você está offline";
+    $("hsheet").classList.toggle("on",on&&!HC.indo&&!part);
+    $("hsheet").classList.toggle("pt",on&&part);
+    if(!on) sheetOpen(false);
+    st.className="hstate "+(HC.indo?"indo":on?(part?"part":"busca"):"off");
+    st.textContent=HC.indo?"Indo buscar "+HC.indo.name:on?(part?"Só particulares":"Procurando"):"Você está offline";
+    $("hsMoreTxt").textContent=part?"Online só pra corridas particulares: quem te chama pela sua página ou WhatsApp.":"Você está recebendo corridas pelo app e particulares.";
   }
+  // Arrastar a faixa pra cima mostra o botão de ficar offline (só quando online)
+  function sheetOpen(v){ $("hsheet").classList.toggle("open",v); document.body.classList.toggle("sheetopen",v); }
+  (function(){
+    var sh=$("hsheet"), y0=null, moved=false;
+    sh.addEventListener("pointerdown",function(e){ if(e.target.closest("button")) return; y0=e.clientY; moved=false; try{ sh.setPointerCapture(e.pointerId); }catch(_){} });
+    sh.addEventListener("pointermove",function(e){ if(y0==null) return; var dy=e.clientY-y0; if(Math.abs(dy)>8) moved=true; if(ON.on) sh.style.transform=dy<0?"":"translateY("+Math.min(dy,60)+"px)"; });
+    function end(e){ if(y0==null) return; var dy=e.clientY-y0; y0=null; sh.style.transform="";
+      if(!ON.on) return;
+      if(dy<-25) sheetOpen(true); else if(dy>25) sheetOpen(false); else if(!moved) sheetOpen(!sh.classList.contains("open")); }
+    sh.addEventListener("pointerup",end); sh.addEventListener("pointercancel",function(){ y0=null; sh.style.transform=""; });
+  })();
+  $("hsPref").addEventListener("click",function(){
+    var mode=S.saved.rideMode==="particular"?"particular":"app";
+    function opt(v,t,d){ return '<button class="modeopt" type="button" data-mode="'+v+'" aria-pressed="'+(mode===v)+'"><span class="rad"></span><span><b>'+t+'</b><small>'+d+'</small></span></button>'; }
+    openSheet("Preferências de corrida",
+      opt("app","Corridas pelo app","Recebe os pedidos dos passageiros do Driver Hub (com preço calculado) e também as corridas particulares.")+
+      opt("particular","Só corridas particulares","Não recebe os pedidos abertos do app. Só quem te chama pela sua página ou fala com você no WhatsApp."));
+  });
+  $("dsBody").addEventListener("click",function(e){
+    var b=e.target.closest("[data-mode]"); if(!b) return;
+    var mode=b.dataset.mode;
+    document.querySelectorAll("#dsBody [data-mode]").forEach(function(x){ x.setAttribute("aria-pressed",String(x===b)); });
+    call("POST","/api/perfil",{rideMode:mode}).then(function(x){
+      if(!x.ok){ toast(x.j.error||"Não deu pra salvar."); return; }
+      S.saved.rideMode=mode; S.draft.rideMode=mode; renderHomeBar(); pollCalls();
+      toast(mode==="particular"?"Agora só corridas particulares":"Recebendo corridas pelo app"); setTimeout(closeSheet,350);
+    });
+  });
   $("goBtn").addEventListener("click",function(){ startOnline(); });
-  $("hsOff").addEventListener("click",function(){ if(confirm("Ficar offline? Você some do mapa dos motoristas.")) stopOnline(); });
+  $("hsOff").addEventListener("click",function(){ sheetOpen(false); stopOnline(); });
   $("hsCalls").addEventListener("click",function(){ go("inicio"); });
   $("hsState").addEventListener("click",function(){ if(HC.indo) go("inicio"); });
   $("codePill").addEventListener("click",function(){ go("inicio"); });

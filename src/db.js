@@ -33,7 +33,16 @@ export function ensureDb(env) {
 async function setup(env) {
   await env.DB.batch(SCHEMA.map((s) => env.DB.prepare(s)));
   // Colunas novas em tabelas que já existem
-  for (const sql of [`ALTER TABLE ride_calls ADD COLUMN token TEXT`]) {
+  for (const sql of [
+    `ALTER TABLE ride_calls ADD COLUMN token TEXT`,
+    // Corrida pedida pelo app: destino, distância e preço (R$ 3 por km)
+    `ALTER TABLE ride_calls ADD COLUMN dest_lat REAL`,
+    `ALTER TABLE ride_calls ADD COLUMN dest_lng REAL`,
+    `ALTER TABLE ride_calls ADD COLUMN dest_name TEXT`,
+    `ALTER TABLE ride_calls ADD COLUMN pickup_name TEXT`,
+    `ALTER TABLE ride_calls ADD COLUMN km REAL`,
+    `ALTER TABLE ride_calls ADD COLUMN price_cents INTEGER`,
+  ]) {
     try { await env.DB.prepare(sql).run(); } catch {}
   }
   await seedOwner(env);

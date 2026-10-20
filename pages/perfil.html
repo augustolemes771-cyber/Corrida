@@ -363,8 +363,8 @@ body.editing .tabs{position:static}
 </div>
 
 <nav class="pnav" id="pnav" aria-label="Driver Hub" hidden>
-  <a href="#" id="navMe" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM3 17h18v3H3zM7 20v1.5M17 20v1.5M8.5 13.5h.01M15.5 13.5h.01"/></svg>Motorista</a>
-  <a href="/motoristas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 20a6.5 6.5 0 0 0-3-5.5"/></svg>Motoristas</a>
+  <a href="/solicitar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.2a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/></svg>Solicitar</a>
+  <a href="/motoristas" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 20a6.5 6.5 0 0 0-3-5.5"/></svg>Motoristas</a>
   <a href="/mapa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5zM9 4v13M15 6.5v13"/></svg>Mapa</a>
   <a href="/conta"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Conta</a>
 </nav>
@@ -1129,7 +1129,7 @@ body.editing .tabs{position:static}
     if(sp.has("c")||sp.has("codigo")) history.replaceState(null,"",location.pathname+location.hash);
     if(location.hash==="#perfil") select(1);
     try{ localStorage.setItem("ultimoMotorista",P.username); }catch(e){}
-    document.body.classList.add("has-nav"); $("pnav").hidden=false; $("navMe").href=location.pathname==="/"?"/":"/"+P.username;
+    document.body.classList.add("has-nav"); $("pnav").hidden=false;
     // Favoritar: com conta salva, sem conta convida a criar
     var fav=$("favBtn"); fav.hidden=false; var logged=false;
     fetch("/api/favoritos",{credentials:"same-origin"}).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){
