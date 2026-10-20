@@ -35,10 +35,29 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
           cp app/build/outputs/apk/release/app-release.apk ../driver-hub.apk
+      # Versão só pra teste no PC do desenvolvedor: abre o servidor local (adb reverse tcp:8787 tcp:8787)
+      - name: Montar APK de teste local
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          python3 - <<'PY'
+          import json, re
+          c = json.load(open("capacitor.config.json"))
+          c["server"] = {"url": "http://localhost:8787/painel", "cleartext": True, "allowNavigation": ["localhost"]}
+          json.dump(c, open("capacitor.config.json", "w"), indent=2)
+          m = "android/app/src/main/AndroidManifest.xml"
+          x = open(m).read().replace("<application", '<application android:usesCleartextTraffic="true"', 1)
+          open(m, "w").write(x)
+          PY
+          npx cap sync android
+          cd android && ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../driver-hub-local.apk
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: android
           name: "Driver Hub Android (teste)"
           body: "Versão de teste ${{ github.run_number }}. Baixe o driver-hub.apk e instale no celular Android."
           make_latest: true
-          files: android-app/driver-hub.apk
+          files: |
+            android-app/driver-hub.apk
+            android-app/driver-hub-local.apk
