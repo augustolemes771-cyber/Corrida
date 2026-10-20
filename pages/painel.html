@@ -1507,23 +1507,26 @@ details.howto ol b{color:var(--fg)}
   // "ok" com a primeira posição; "negada" sem permissão; "falhou" se o GPS não respondeu
   function pedirLocalizacao(){
     return new Promise(function(res){
-      var fim=false; function done(r,loc){ if(fim) return; fim=true; if(loc) sendLoc(loc); res(r); }
-      setTimeout(function(){ done("falhou"); },25000);
+      var fim=false, fontes=0, nao=0, negou=false, wid=null;
+      function done(r,loc){ if(fim) return; fim=true; if(wid&&BG) try{ BG.removeWatcher({id:wid}); }catch(e){} if(loc) sendLoc(loc); res(r); }
+      function falha(neg){ nao++; if(neg) negou=true; if(nao>=fontes) done(negou?"negada":"falhou"); }
+      setTimeout(function(){ done(negou?"negada":"falhou"); },25000);
       if(BG){
-        var wid=null;
+        fontes++;
         try{
           BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
             function(loc,err){
-              if(err) done(err.code==="NOT_AUTHORIZED"?"negada":"falhou");
+              if(err) falha(err.code==="NOT_AUTHORIZED");
               else if(loc) done("ok",{lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed});
-              if(fim&&wid) BG.removeWatcher({id:wid});
-            }).then(function(id){ wid=id; if(fim) BG.removeWatcher({id:id}); }).catch(function(){ done("falhou"); });
-          return;
-        }catch(e){}
+            }).then(function(id){ wid=id; if(fim) try{ BG.removeWatcher({id:id}); }catch(e){} }).catch(function(){ falha(false); });
+        }catch(e){ falha(false); }
       }
-      if(!navigator.geolocation) return done("negada");
-      navigator.geolocation.getCurrentPosition(function(p){ done("ok",{lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed}); },
-        function(e){ done(e.code===1?"negada":"falhou"); },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+      if(navigator.geolocation){
+        fontes++;
+        navigator.geolocation.getCurrentPosition(function(p){ done("ok",{lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed}); },
+          function(e){ falha(e.code===1); },{enableHighAccuracy:true,timeout:20000,maximumAge:30000});
+      }
+      if(!fontes) done("negada");
     });
   }
   function semLocalizacao(r){
@@ -1548,19 +1551,25 @@ details.howto ol b{color:var(--fg)}
     } else if(NATIVE&&BG){
       BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
         function(loc,err){
-          if(err){
-            if(err.code==="NOT_AUTHORIZED"&&confirm("Você está online, mas o Driver Hub precisa da sua localização pra aparecer no mapa. Abrir as configurações?")) BG.openSettings();
-            else semGps(); return;
-          }
+          if(err){ gpsDaPagina(err.code==="NOT_AUTHORIZED"); return; }
           if(loc) sendLoc({lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed});
-        }).then(function(id){ ON.watch=id; }).catch(function(){ semGps(); });
+        }).then(function(id){ ON.watch=id; }).catch(function(){ gpsDaPagina(false); });
     } else if(navigator.geolocation){
       ON.watch=navigator.geolocation.watchPosition(function(pos){ sendLoc({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,speed:pos.coords.speed}); },
         function(e){ if(e.code===1) semGps("Você está online, mas sem localização. Libere a localização nas configurações do navegador."); },
         {enableHighAccuracy:true,maximumAge:15000,timeout:30000});
     } else semGps();
   }
+  // iPhone: se o rastreamento com a tela apagada falhar, segue com o GPS da página (tela acesa).
+  // Só sai do online se a permissão estiver negada E nenhuma posição chegar.
+  function gpsDaPagina(negou){
+    if(!ON.on||ON.watchPg!=null) return;
+    if(!navigator.geolocation){ if(negou&&Date.now()-ON.last>120000) semGps(); return; }
+    ON.watchPg=navigator.geolocation.watchPosition(function(pos){ sendLoc({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,speed:pos.coords.speed}); },
+      function(e){ if(e.code===1&&negou&&Date.now()-ON.last>120000) semGps(); },{enableHighAccuracy:true,maximumAge:15000,timeout:30000});
+  }
   function stopOnline(){
+    if(ON.watchPg!=null&&navigator.geolocation){ navigator.geolocation.clearWatch(ON.watchPg); ON.watchPg=null; }
     try{ if(RAST) RAST.parar(); else if(NATIVE&&BG&&ON.watch) BG.removeWatcher({id:ON.watch}); else if(ON.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(ON.watch); }catch(e){}
     clearInterval(ON.beat);
     var was=ON.on; ON.watch=null; ON.on=false; ON.pos=null; try{ localStorage.removeItem("online"); }catch(e){}
