@@ -149,7 +149,7 @@ async function route(req, env) {
   }
 
   // ---------- API pública do perfil ----------
-  const pub = p.match(/^\/api\/p\/([a-z0-9._]{3,20})\/(now|control|queue|search|pedido|feedback|codigo)$/);
+  const pub = p.match(/^\/api\/p\/([a-z0-9._]{3,20})\/(now|control|queue|search|pedido|feedback|codigo|chamar|chamado)$/);
   if (pub) return publicApi(req, env, url, pub[1], pub[2]);
 
   // ---------- Spotify: conectar ----------
@@ -210,6 +210,23 @@ async function publicApi(req, env, url, username, action) {
   const p = await getProfile(env, user.id);
   const music = await musicState(env, user.id, p);
   const who = ip(req);
+
+  // Chamado: o passageiro chama este motorista pelo app
+  if (action === "chamar" && req.method === "POST") {
+    if (tooMany("cham" + who, 5)) return json({ error: "Você já chamou. Espere a resposta do motorista." }, 429);
+    const b = await body(req);
+    const name = cut(b.name, 40), phone = digits(b.phone).slice(0, 13), note = cut(b.note, 160);
+    if (!name) return json({ error: "Coloque seu nome." }, 400);
+    if (phone.length < 10) return json({ error: "Coloque seu WhatsApp com DDD." }, 400);
+    const lat = Number(b.lat), lng = Number(b.lng), ok = Number.isFinite(lat) && Number.isFinite(lng);
+    const r = await env.DB.prepare(`INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at) VALUES(?,?,?,?,?,?,?)`)
+      .bind(user.id, name, phone, note, ok ? lat : null, ok ? lng : null, Date.now()).run();
+    return json({ ok: true, id: r.meta.last_row_id });
+  }
+  if (action === "chamado" && req.method === "GET") {
+    const row = await env.DB.prepare(`SELECT status FROM ride_calls WHERE id=? AND driver_id=?`).bind(Number(url.searchParams.get("id")), user.id).first();
+    return json({ status: row ? row.status : "sumiu" });
+  }
 
   if (action === "codigo" && req.method === "POST") {
     if (tooMany("cod" + who + user.id, 12)) return json({ error: "Muitas tentativas. Peça o código de novo pro motorista." }, 429);
@@ -564,6 +581,19 @@ async function driverApi(req, env, url, p, me, secure) {
       env.DB.prepare(`UPDATE users SET pass=? WHERE id=?`).bind(await hashPassword(String(b.nova)), me.id),
       env.DB.prepare(`DELETE FROM sessions WHERE user_id=? AND token<>?`).bind(me.id, me.token),
     ]);
+    return json({ ok: true });
+  }
+
+  // ---- Chamados de passageiros
+  if (p === "/api/chamados" && m === "GET") {
+    const { results } = await env.DB.prepare(`SELECT * FROM ride_calls WHERE driver_id=? AND created_at>? ORDER BY id DESC LIMIT 20`)
+      .bind(me.id, Date.now() - 3 * 3600 * 1000).all();
+    return json({ chamados: results });
+  }
+  const ch = p.match(/^\/api\/chamados\/(\d+)\/(aceitar|recusar|concluir)$/);
+  if (ch && m === "POST") {
+    const st = { aceitar: "aceito", recusar: "recusado", concluir: "concluido" }[ch[2]];
+    await env.DB.prepare(`UPDATE ride_calls SET status=? WHERE id=? AND driver_id=?`).bind(st, Number(ch[1]), me.id).run();
     return json({ ok: true });
   }
 

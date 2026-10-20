@@ -188,6 +188,15 @@ body.has-nav{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .fav{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);background:var(--panel);padding:0;color:var(--fg);flex:none}
 .fav[aria-pressed=true]{color:#ff6b86;border-color:#ff6b86}
 .fav[aria-pressed=true] svg{fill:currentColor}
+/* Chamar motorista */
+.callbtn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:2px solid var(--accent);background:transparent;color:var(--fg);border-radius:14px;padding:12px 14px}
+.callbtn svg{width:26px;height:26px;color:var(--accent)}
+.callbtn span{display:flex;flex-direction:column}
+.callbtn b{font-size:17px;font-weight:800}
+.callbtn small{font-size:13px;color:var(--muted)}
+.callstat{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.callstat b{font-size:20px}
+
 /* Cadeado da música */
 .lockbox{display:flex;flex-direction:column;gap:12px;padding:16px}
 .lockbox .lh{display:flex;gap:12px;align-items:center}
@@ -300,6 +309,9 @@ body.editing .tabs{position:static}
     <span><b>Me chama no WhatsApp</b><small>Toque aqui pra mandar mensagem</small></span>
     <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
   </a></div>
+  <button type="button" class="callbtn" id="callBtn" hidden>
+    <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM3 17h18v3H3zM7 20v1.5M17 20v1.5"/></svg>
+    <span><b>Chamar este motorista</b><small id="callSub">Pede uma corrida direto pra ele</small></span></button>
   <div class="demo" id="demo" hidden>Prévia com dados de exemplo.</div>
 
   <div class="tabs" role="tablist" aria-label="Seções do perfil">
@@ -1120,13 +1132,70 @@ body.editing .tabs{position:static}
     });
   }
 
+  // ---------- Chamar o motorista ----------
+  var CALL_KEY="chamado:"+P.username, callTimer=null;
+  function initCall(){
+    $("callBtn").hidden=false;
+    $("callBtn").addEventListener("click",openCall);
+    $("sheetDone").addEventListener("click",function(){ $("sheet").hidden=true; });
+    $("sheet").addEventListener("click",function(e){ if(e.target===this) this.hidden=true; });
+    var saved=null; try{ saved=JSON.parse(localStorage.getItem(CALL_KEY)||"null"); }catch(e){}
+    if(saved&&Date.now()-saved.at<3*3600*1000){ $("callSub").textContent="Você já chamou. Toque pra ver a resposta"; }
+  }
+  function openCall(){
+    var saved=null; try{ saved=JSON.parse(localStorage.getItem(CALL_KEY)||"null"); }catch(e){}
+    $("sheetTitle").textContent="Chamar "+P.name;
+    if(saved&&Date.now()-saved.at<3*3600*1000){ showStatus(saved.id); $("sheet").hidden=false; return; }
+    var nome="",fone=""; try{ nome=localStorage.getItem("meuNome")||""; fone=localStorage.getItem("meuFone")||""; }catch(e){}
+    $("sheetBody").innerHTML='<form id="callForm" class="callstat" novalidate style="align-items:stretch">'+
+      '<label class="q"><span>Seu nome</span><input id="cName" maxlength="40" autocomplete="given-name" value="'+esc(nome)+'"></label>'+
+      '<label class="q"><span>Seu WhatsApp</span><input id="cPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(64) 9 0000-0000" value="'+esc(fone)+'"></label>'+
+      '<label class="q"><span>Onde você está e pra onde vai?</span><textarea id="cNote" rows="2" maxlength="160" placeholder="Ex.: na frente do Hotel X, vou pro Centro"></textarea></label>'+
+      '<label class="check"><input type="checkbox" id="cLoc" checked> <span>Mandar minha localização pro motorista</span></label>'+
+      '<button class="primary" type="submit" id="cSend">Chamar '+esc(P.name)+'</button><div class="msg" id="cMsg" role="status"></div></form>';
+    $("sheet").hidden=false;
+    $("callForm").addEventListener("submit",function(e){
+      e.preventDefault();
+      var d={name:$("cName").value.trim(),phone:$("cPhone").value.trim(),note:$("cNote").value.trim()};
+      if(!d.name){ setMsg("cMsg","Coloque seu nome.","err"); return; }
+      if(d.phone.replace(/\D/g,"").length<10){ setMsg("cMsg","Coloque seu WhatsApp com DDD.","err"); return; }
+      try{ localStorage.setItem("meuNome",d.name); localStorage.setItem("meuFone",d.phone); }catch(_){}
+      $("cSend").disabled=true; setMsg("cMsg","Enviando…");
+      var send=function(){ post(api("chamar"),d).then(function(x){
+        if(!x.ok){ $("cSend").disabled=false; setMsg("cMsg",x.j.error||"Não deu pra chamar.","err"); return; }
+        try{ localStorage.setItem(CALL_KEY,JSON.stringify({id:x.j.id,at:Date.now()})); }catch(_){}
+        showStatus(x.j.id);
+      }).catch(function(){ $("cSend").disabled=false; setMsg("cMsg","Sem conexão. Tente de novo.","err"); }); };
+      if($("cLoc").checked&&navigator.geolocation){
+        setMsg("cMsg","Pegando sua localização…");
+        navigator.geolocation.getCurrentPosition(function(p){ d.lat=p.coords.latitude; d.lng=p.coords.longitude; send(); },function(){ send(); },{enableHighAccuracy:true,timeout:8000,maximumAge:60000});
+      } else send();
+    });
+  }
+  function showStatus(id){
+    var T={novo:["Chamado enviado","Esperando "+P.name+" responder. Pode deixar essa tela aberta."],
+      aceito:["Aceito! 🚗",P.name+" vai te chamar no WhatsApp."],recusado:["Agora não deu",P.name+" não pode agora. Tente outro motorista na aba Motoristas."],
+      concluido:["Corrida concluída","Valeu! Bora de novo quando precisar."],sumiu:["Chamado expirou","Chame de novo se ainda precisar."]};
+    function draw(st){
+      var t=T[st]||T.novo, fim=st!=="novo";
+      $("sheetBody").innerHTML='<div class="callstat"><b>'+esc(t[0])+'</b><p class="hint" style="font-size:16px">'+esc(t[1])+'</p>'+
+        (P.whatsapp?'<a class="primary" style="text-align:center;text-decoration:none" href="https://wa.me/'+P.whatsapp+'" target="_blank" rel="noopener">Abrir WhatsApp do motorista</a>':'')+
+        (fim?'<button type="button" class="ghostbtn" id="cNew">Fazer outro chamado</button>':'')+'</div>';
+      var n=$("cNew"); if(n) n.addEventListener("click",function(){ try{ localStorage.removeItem(CALL_KEY); }catch(_){} clearInterval(callTimer); $("callSub").textContent="Pede uma corrida direto pra ele"; openCall(); });
+      if(fim){ clearInterval(callTimer); callTimer=null; }
+    }
+    draw("novo");
+    function check(){ fetch(api("chamado")+"?id="+id).then(function(r){ return r.json(); }).then(function(j){ draw(j.status); }).catch(function(){}); }
+    check(); clearInterval(callTimer); callTimer=setInterval(check,6000);
+  }
+
   // ---------- Início ----------
   if(EDIT) initEdit();
   render();
   if(demo) $("demo").hidden=false;
   if(P.owner&&!EDIT) $("adminLink").hidden=false;
   if(P.preview&&!EDIT) document.addEventListener("click",function(e){ if(e.target.closest("a")) e.preventDefault(); },true);
-  if(!EDIT&&!demo&&!P.preview) initPassenger();
+  if(!EDIT&&!demo&&!P.preview){ initPassenger(); initCall(); }
   if(EDIT) document.addEventListener("click",function(e){ var a=e.target.closest("a"); if(a&&a.id!=="edExit") e.preventDefault(); },true);
 })();
 </script>

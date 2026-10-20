@@ -15,6 +15,7 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS fuel_prices(id INTEGER PRIMARY KEY AUTOINCREMENT, place_id INTEGER NOT NULL, fuel TEXT NOT NULL, cents INTEGER NOT NULL, user_id INTEGER, created_at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS favorites(user_id INTEGER NOT NULL, kind TEXT NOT NULL, ref TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(user_id,kind,ref))`,
   `CREATE TABLE IF NOT EXISTS driver_locations(user_id INTEGER PRIMARY KEY, lat REAL NOT NULL, lng REAL NOT NULL, acc REAL, speed REAL, at INTEGER NOT NULL, online INTEGER NOT NULL DEFAULT 0)`,
+  `CREATE TABLE IF NOT EXISTS ride_calls(id INTEGER PRIMARY KEY AUTOINCREMENT, driver_id INTEGER NOT NULL, name TEXT, phone TEXT, note TEXT, lat REAL, lng REAL, status TEXT NOT NULL DEFAULT 'novo', created_at INTEGER NOT NULL)`,
   `CREATE INDEX IF NOT EXISTS idx_places_kind ON places(kind)`,
   `CREATE INDEX IF NOT EXISTS idx_fuel_place ON fuel_prices(place_id, fuel, created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_req_user ON song_requests(user_id, created_at)`,
