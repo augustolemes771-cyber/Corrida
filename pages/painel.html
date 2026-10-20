@@ -999,18 +999,28 @@ details.howto ol b{color:var(--fg)}
   // ================= Ficar online =================
   // No app Android usa a localização em segundo plano (com notificação fixa). No navegador, só com a página aberta.
   var NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
-  var BG=NATIVE&&Capacitor.registerPlugin?Capacitor.registerPlugin("BackgroundGeolocation"):null;
+  var ANDROID=NATIVE&&Capacitor.getPlatform&&Capacitor.getPlatform()==="android";
+  // Android: serviço nativo que envia sozinho (a página congela em segundo plano). iPhone: plugin de localização.
+  var RAST=ANDROID&&Capacitor.registerPlugin?Capacitor.registerPlugin("Rastreio"):null;
+  var BG=NATIVE&&!ANDROID&&Capacitor.registerPlugin?Capacitor.registerPlugin("BackgroundGeolocation"):null;
   var ON={on:false,watch:null,last:0,pos:null};
   function sendLoc(p){
     var now=Date.now();
-    if(ON.pos&&now-ON.last<25000&&DHMap.distKm(ON.pos,p)<0.05) return;
+    // Andando: no máximo a cada 25 s. Parado: um sinal por minuto, pra não sumir do mapa.
+    if(ON.pos&&(now-ON.last<25000||(now-ON.last<60000&&DHMap.distKm(ON.pos,p)<0.05))) return;
     ON.last=now; ON.pos=p;
     fetch("/api/localizacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p),credentials:"same-origin",keepalive:true}).catch(function(){});
   }
   function startOnline(quiet){
     if(ON.on) return;
-    if(NATIVE&&BG){
-      BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:30},
+    if(RAST){
+      RAST.iniciar({url:location.origin+"/api/localizacao"}).catch(function(e){
+        if(e&&e.code==="NOT_AUTHORIZED"&&confirm("O Driver Hub precisa da sua localização pra ficar online. Abrir as configurações do app?")) RAST.abrirConfiguracoes();
+        else if(e&&e.message) toast(e.message);
+        stopOnline();
+      });
+    } else if(NATIVE&&BG){
+      BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
         function(loc,err){
           if(err){
             if(err.code==="NOT_AUTHORIZED"&&confirm("O Driver Hub precisa da sua localização pra ficar online. Abrir as configurações?")) BG.openSettings();
@@ -1028,7 +1038,7 @@ details.howto ol b{color:var(--fg)}
     renderOnline(); if(!quiet) toast("Você está online");
   }
   function stopOnline(){
-    if(NATIVE&&BG&&ON.watch) BG.removeWatcher({id:ON.watch}); else if(ON.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(ON.watch);
+    if(RAST) RAST.parar(); else if(NATIVE&&BG&&ON.watch) BG.removeWatcher({id:ON.watch}); else if(ON.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(ON.watch);
     var was=ON.on; ON.watch=null; ON.on=false; ON.pos=null; try{ localStorage.removeItem("online"); }catch(e){}
     if(was) call("POST","/api/localizacao",{online:false});
     renderOnline();
