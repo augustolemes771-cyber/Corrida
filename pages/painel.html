@@ -1722,10 +1722,13 @@ details.howto ol b{color:var(--fg)}
   document.addEventListener("click",function(e){ var b=e.target.closest("main [data-go]"); if(b&&!b.closest("#statusList")) go(b.dataset.go); });
 
   // ================= Navegação =================
-  function go(v){
+  var hist=[];
+  function go(v,voltando){
     // A página se edita direto nela mesma
     if(v==="pagina"){ location.href="/editar"; return; }
     if(!$("v-"+v)) v="inicio";
+    if(!voltando&&hist.aberto&&S.view!==v){ hist.push(S.view); hist=hist.slice(-20); }
+    hist.aberto=true;
     S.view=v;
     document.querySelectorAll(".view[id^=v-]").forEach(function(el){ el.hidden=el.id!=="v-"+v; });
     closeMenu(); document.body.classList.toggle("home",v==="mapa");
@@ -1740,6 +1743,22 @@ details.howto ol b{color:var(--fg)}
     if(v==="indicacoes"){ renderInd(); loadPS(); }
     if(v==="lugares"){ renderLug(); loadPS(); }
   }
+  // Botão voltar do Android (chamado pelo app): fecha o que estiver aberto, senão volta pra aba anterior.
+  // 1 = tratou; 2 = está no mapa (o app minimiza); 0 = deixa o app decidir.
+  window.dhVoltar=function(){
+    if($("app").hidden) return 0;
+    if(!$("offer").hidden) return 1;
+    if(!$("drawer").hidden){ closeMenu(); return 1; }
+    if(!$("dsheet").hidden){ closeSheet(); return 1; }
+    if(!$("qrFull").hidden){ $("qrClose").click(); return 1; }
+    if($("hsheet").classList.contains("open")){ sheetOpen(false); return 1; }
+    if(picking){ endPick(); return 1; }
+    if(document.body.classList.contains("layers")){ $("layersBtn").click(); return 1; }
+    while(hist.length){ var v=hist.pop(); if(v!==S.view){ go(v,true); return 1; } }
+    if(S.view!=="mapa"){ go("mapa",true); return 1; }
+    return 2;
+  };
+
   // Menu lateral (☰), no lugar da barra de abas
   function closeMenu(){ $("drawer").hidden=true; }
   document.addEventListener("click",function(e){ if(e.target.closest("[data-menu]")) $("drawer").hidden=false; });

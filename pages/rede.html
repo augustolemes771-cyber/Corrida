@@ -548,6 +548,13 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     }
   });
   if(view!=="solicitar"&&CALL&&(CALL.status==="novo"||CALL.status==="aceito")) openCall();
+  // Botão voltar do Android: fecha o que estiver aberto; na tela Solicitar o app minimiza; senão volta a página anterior
+  window.dhVoltar=function(){
+    if(!$("callWrap").hidden){ closeCall(); return 1; }
+    if(!$("placeSheet").hidden){ closePlace(); return 1; }
+    if(!$("sSugs").hidden){ $("sSugs").hidden=true; return 1; }
+    return view==="solicitar"?2:0;
+  };
 
   // ---------- Início ----------
   Promise.all([call("GET","/api/conta"),call("GET","/api/favoritos")]).then(function(r){
