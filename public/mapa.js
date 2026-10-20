@@ -63,6 +63,10 @@
     ".leaflet-bottom.leaflet-right .leaflet-control-zoom{margin-bottom:82px}",
     ".leaflet-control-attribution{background:rgba(12,14,26,.75)!important;color:#9097b8!important;font-size:10px}",
     ".leaflet-control-attribution a{color:#cfd3ea!important}",
+    ".dh-cred{display:flex;align-items:center;gap:6px;margin:0 0 8px 8px!important;font:600 11px/1.3 Figtree,system-ui,sans-serif;color:#9097b8}",
+    ".dh-cred button{width:22px;height:22px;border-radius:50%;border:1px solid rgba(144,151,184,.45);background:rgba(12,14,26,.6);color:#9097b8;font:700 12px/1 Georgia,serif;font-style:italic;padding:0;cursor:pointer}",
+    ".dh-cred span{background:rgba(12,14,26,.85);border-radius:6px;padding:3px 7px}",
+    ".dh-cred a{color:#cfd3ea}",
     ".leaflet-control-zoom a{background:#151829!important;color:#eef0fa!important;border-color:#2a2f4a!important}",
     /* Cartão de detalhes */
     ".pc-photo{display:block;width:100%;height:160px;object-fit:cover;border-radius:14px;margin-bottom:12px}",
@@ -113,10 +117,20 @@
 
   function create(el, city, opts) {
     opts = opts || {};
-    var map = L.map(el, { zoomControl: false, attributionControl: true, tap: true }).setView([city.lat, city.lng], opts.zoom || 14);
+    var map = L.map(el, { zoomControl: false, attributionControl: false, tap: true }).setView([city.lat, city.lng], opts.zoom || 14);
     // Mapa vetorial escuro e limpo, no estilo dos apps de corrida (OpenFreeMap: grátis, sem chave).
     // Sem WebGL, cai no OpenStreetMap comum escurecido.
     var attr = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+    // Sem a faixa do Leaflet: os créditos do mapa (a licença do OpenStreetMap pede) ficam num "i" discreto
+    var cred = L.control({ position: "bottomleft" });
+    cred.onAdd = function () {
+      var d = L.DomUtil.create("div", "dh-cred");
+      d.innerHTML = '<button type="button" aria-label="Créditos do mapa" aria-expanded="false">i</button><span hidden>' + attr + "</span>";
+      L.DomEvent.disableClickPropagation(d);
+      d.firstChild.addEventListener("click", function () { var sp = d.lastChild; sp.hidden = !sp.hidden; this.setAttribute("aria-expanded", String(!sp.hidden)); });
+      return d;
+    };
+    cred.addTo(map);
     var vetor = false;
     try {
       if (window.maplibregl && L.maplibreGL && maplibregl.supported !== false) {
