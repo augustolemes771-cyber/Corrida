@@ -36,6 +36,8 @@ export default {
 
 const ONLINE_MS = 15 * 60 * 1000;     // online = mandou sinal nos últimos 15 min
 const PRICE_PER_KM = 300;             // R$ 3,00 por km, em centavos
+const MIN_PRICE = 1000;               // corrida mínima: R$ 10,00
+const fare = (km) => Math.max(MIN_PRICE, Math.round(km * PRICE_PER_KM));
 // Motoristas online que aceitam chamados abertos do app (não os que só pegam corrida particular)
 const APP_DRIVERS_ONLINE = `SELECT COUNT(*) n FROM driver_locations l LEFT JOIN profiles p ON p.user_id=l.user_id
   WHERE l.online=1 AND l.at>? AND COALESCE(json_extract(p.data,'$.rideMode'),'app')<>'particular'`;
@@ -160,7 +162,7 @@ async function route(req, env) {
     const b = await body(req), from = point(b.from), to = point(b.to);
     if (!from || !to) return json({ error: "Escolha a saída e o destino." }, 400);
     const km = await routeKm(from, to);
-    return json({ km, price_cents: Math.round(km * PRICE_PER_KM), online: (await env.DB.prepare(APP_DRIVERS_ONLINE).bind(Date.now() - ONLINE_MS).first()).n });
+    return json({ km, price_cents: fare(km), online: (await env.DB.prepare(APP_DRIVERS_ONLINE).bind(Date.now() - ONLINE_MS).first()).n });
   }
 
   if (p === "/api/chamar" && m === "POST") {
@@ -174,7 +176,7 @@ async function route(req, env) {
     if (!to) return json({ error: "Escolha o destino.", field: "dest" }, 400);
     const on = await env.DB.prepare(APP_DRIVERS_ONLINE).bind(Date.now() - ONLINE_MS).first();
     if (!on.n) return json({ error: "Nenhum motorista online agora. Tente de novo daqui a pouco." }, 409);
-    const km = await routeKm(from, to), price = Math.round(km * PRICE_PER_KM);
+    const km = await routeKm(from, to), price = fare(km);
     const token = crypto.randomUUID();
     const r = await env.DB.prepare(
       `INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at,token,dest_lat,dest_lng,dest_name,pickup_name,km,price_cents) VALUES(0,?,?,?,?,?,?,?,?,?,?,?,?,?)`

@@ -441,7 +441,7 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
   $("callClose").addEventListener("click",closeCall);
   $("callWrap").addEventListener("click",function(e){ if(e.target===this) closeCall(); });
 
-  // ---------- Solicitar corrida (R$ 3 por km, calculado no servidor pela rota de carro) ----------
+  // ---------- Solicitar corrida (R$ 3 por km, mínimo R$ 10, calculado no servidor pela rota de carro) ----------
   var S2={from:null,to:null,pick:null,map:null,layer:null,fare:null,q:0,t:null};
   function initSolicitar(){
     $("v-solicitar").hidden=false;
@@ -494,7 +494,7 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     });
     call("POST","/api/preco",{from:a,to:b}).then(function(x){ if(S2.from!==a||S2.to!==b||!x.ok) return;
       S2.fare=x.j; $("sFare").hidden=false; $("sPrice").textContent=DHMap.money(x.j.price_cents);
-      $("sInfo").innerHTML=String(x.j.km.toFixed(1)).replace(".",",")+" km · R$ 3,00 por km<br>"+(x.j.online?x.j.online+(x.j.online===1?" motorista online":" motoristas online"):"Nenhum motorista online agora");
+      $("sInfo").innerHTML=String(x.j.km.toFixed(1)).replace(".",",")+" km · "+(x.j.price_cents<=1000?"corrida mínima":"R$ 3,00 por km")+"<br>"+(x.j.online?x.j.online+(x.j.online===1?" motorista online":" motoristas online"):"Nenhum motorista online agora");
       $("sGo").textContent="Solicitar corrida · "+DHMap.money(x.j.price_cents);
     });
   }
