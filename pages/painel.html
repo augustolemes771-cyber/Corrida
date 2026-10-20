@@ -68,7 +68,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent);outline:none}
 .btn.wa{background:var(--wa);border-color:var(--wa);color:var(--wa-ink);font-weight:800}
 .btn.ghost{background:transparent}
 .btn.danger{background:transparent;color:var(--err);border-color:color-mix(in srgb,var(--err) 40%,var(--line))}
-.btn.block{width:100%}
+.btn.block{width:100%;flex-direction:row;gap:8px;padding:12px 16px;border-radius:12px}
 .btn.sm{min-height:38px;padding:8px 12px;font-size:14px;border-radius:10px}
 .linkbtn{border:0;background:none;padding:0;color:var(--accent);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 
@@ -653,6 +653,22 @@ details.howto ol b{color:var(--fg)}
       <div class="list" id="lugList"></div>
     </section>
 
+    <!-- Atualizações do app -->
+    <section class="view" id="v-atualizacoes" aria-labelledby="h-upd" hidden>
+      <div class="stack" style="gap:6px"><h2 id="h-upd">Atualizações</h2><p class="hint">As telas do Driver Hub se atualizam sozinhas. Só as mudanças de dentro do app (como o botão voltar ou a tela acesa) pedem um app novo.</p></div>
+      <div class="block">
+        <div class="row between"><b>App Android</b><span class="tagline" id="updTag"></span></div>
+        <p class="hint" id="updInfo">Conferindo a versão…</p>
+        <a class="btn primary block" id="updApk" href="https://github.com/augustolemes771-cyber/Corrida/releases/latest/download/driver-hub.apk"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar o app Android</a>
+        <p class="hint">Depois do download, toque no arquivo e em <b>Instalar</b> (ou Atualizar). Ele instala por cima e mantém seu login.</p>
+      </div>
+      <div class="block">
+        <b>App iPhone</b>
+        <p class="hint">No iPhone o app é instalado pelo computador, com o Sideloadly e o seu Apple ID. Baixe o arquivo no PC e instale por lá. Com Apple ID grátis, a Apple pede pra reinstalar a cada 7 dias.</p>
+        <a class="btn block" href="https://github.com/augustolemes771-cyber/Corrida/releases/download/ios/driver-hub.ipa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar o app iPhone (.ipa)</a>
+      </div>
+    </section>
+
     <!-- Mais -->
     <section class="view" id="v-mais" aria-labelledby="h-mais" hidden>
       <div class="list">
@@ -696,6 +712,7 @@ details.howto ol b{color:var(--fg)}
         <button type="button" data-v="pitstop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5l3 3 5.8-5.8a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>Pit Stop</button>
         <button type="button" data-v="pagina"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Minha página</button>
         <button type="button" data-v="perfil"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Meus dados</button>
+        <button type="button" data-v="atualizacoes"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Atualizações<span class="badge" id="updBadge" hidden>1</span></button>
         <button type="button" data-v="mais"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Respostas e conta</button>
       </nav>
     </div>
@@ -1826,6 +1843,7 @@ details.howto ol b{color:var(--fg)}
     if(v==="postos"){ renderFuelRows(); renderPostos(); loadPS(); }
     if(v==="indicacoes"){ renderInd(); loadPS(); }
     if(v==="lugares"){ renderLug(); loadPS(); }
+    if(v==="atualizacoes"){ renderUpd(); var ub=document.getElementById("dhUpd"); if(ub) ub.remove(); }
   }
   // Botão voltar do Android (chamado pelo app): fecha o que estiver aberto, senão volta pra aba anterior.
   // 1 = tratou; 2 = está no mapa (o app minimiza); 0 = deixa o app decidir.
@@ -1842,6 +1860,19 @@ details.howto ol b{color:var(--fg)}
     if(S.view!=="mapa"){ go("mapa",true); return 1; }
     return 2;
   };
+
+  // ----- Atualizações: compara a versão do app instalado com a mais nova -----
+  var UPD={mine:(navigator.userAgent.match(/DriverHubApp\/(\d+)/)||[])[1],latest:0};
+  function renderUpd(){
+    var mine=Number(UPD.mine||0), latest=UPD.latest, novo=ANDROID&&mine&&latest>mine;
+    $("updBadge").hidden=!novo;
+    $("updTag").className="tagline "+(novo?"warn":ANDROID&&mine?"ok":"");
+    $("updTag").textContent=novo?"Atualização disponível":ANDROID&&mine?"Em dia":"";
+    $("updInfo").textContent=ANDROID?(mine?"Você está na versão "+mine+(latest?" · mais nova: "+latest:"")+".":"Seu app é de antes do aviso de atualização. Baixe a versão nova abaixo; depois as próximas aparecem aqui."):
+      (latest?"Versão mais nova: "+latest+". Pra instalar, abra este painel no celular Android.":"Pra instalar, abra este painel no celular Android.");
+    $("updApk").innerHTML=$("updApk").innerHTML.replace(/(<\/svg>).*$/,"$1"+(novo?"Atualizar agora":"Baixar o app Android"));
+  }
+  fetch("/api/app-versao").then(function(r){ return r.json(); }).then(function(j){ UPD.latest=j.android||0; renderUpd(); }).catch(function(){});
 
   // Menu lateral (☰), no lugar da barra de abas
   function closeMenu(){ $("drawer").hidden=true; }
