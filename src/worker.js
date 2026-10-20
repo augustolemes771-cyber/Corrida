@@ -34,6 +34,9 @@ export default {
   },
 };
 
+const ONLINE_MS = 15 * 60 * 1000;     // online = mandou sinal nos últimos 15 min
+const OPEN_CALL_MS = 10 * 60 * 1000;  // chamado aberto vale 10 min
+
 async function route(req, env) {
   const url = new URL(req.url);
   const p = url.pathname.replace(/\/+$/, "") || "/";
@@ -133,6 +136,42 @@ async function route(req, env) {
     return json({ lugares: list, city: cityOf(env), categorias: LUGAR }, 200, { "cache-control": "public, max-age=30" });
   }
 
+  // ---------- Chamado aberto (passageiro chama qualquer motorista online) ----------
+  if (p === "/api/chamar" && m === "POST") {
+    if (tooMany("cham" + ip(req), 5)) return json({ error: "Você já chamou. Espere a resposta de um motorista." }, 429);
+    const b = await body(req);
+    const name = cut(b.name, 40), phone = digits(b.phone).slice(0, 13), note = cut(b.note, 160);
+    if (!name) return json({ error: "Coloque seu nome.", field: "name" }, 400);
+    if (phone.length < 10) return json({ error: "Coloque seu WhatsApp com DDD.", field: "phone" }, 400);
+    const on = await env.DB.prepare(`SELECT COUNT(*) n FROM driver_locations WHERE online=1 AND at>?`).bind(Date.now() - ONLINE_MS).first();
+    if (!on.n) return json({ error: "Nenhum motorista online agora. Tente de novo daqui a pouco." }, 409);
+    const lat = Number(b.lat), lng = Number(b.lng), ok = Number.isFinite(lat) && Number.isFinite(lng);
+    const token = crypto.randomUUID();
+    const r = await env.DB.prepare(`INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at,token) VALUES(0,?,?,?,?,?,?,?)`)
+      .bind(name, phone, note, ok ? lat : null, ok ? lng : null, Date.now(), token).run();
+    return json({ ok: true, id: r.meta.last_row_id, token, online: on.n });
+  }
+  if (p === "/api/chamado" && (m === "GET" || m === "POST")) {
+    const id = Number(url.searchParams.get("id")), t = url.searchParams.get("t") || "";
+    const row = await env.DB.prepare(`SELECT * FROM ride_calls WHERE id=?`).bind(id).first();
+    if (!row || !row.token || row.token !== t) return json({ status: "sumiu" });
+    if (m === "POST") {
+      if (row.status === "novo" || row.status === "aceito") await env.DB.prepare(`UPDATE ride_calls SET status='cancelado' WHERE id=?`).bind(id).run();
+      return json({ ok: true });
+    }
+    const status = row.status === "novo" && row.created_at < Date.now() - OPEN_CALL_MS ? "expirou" : row.status;
+    const out = { status };
+    if (row.driver_id && (status === "aceito" || status === "concluido")) {
+      const u = await env.DB.prepare(`SELECT username FROM users WHERE id=?`).bind(row.driver_id).first();
+      const d = await getProfile(env, row.driver_id);
+      out.driver = { name: d.name || u?.username || "", username: u?.username || "", car: d.car || "", whatsapp: d.whatsapp || "",
+        avatar: d.hasAvatar ? `/img/${row.driver_id}/avatar?v=${d.avatarVersion}` : "" };
+      const loc = await env.DB.prepare(`SELECT lat,lng,at,acc FROM driver_locations WHERE user_id=? AND at>?`).bind(row.driver_id, Date.now() - 10 * 60 * 1000).first();
+      if (loc && !(loc.acc < 0)) out.driver.pos = { lat: loc.lat, lng: loc.lng, at: loc.at };
+    }
+    return json(out);
+  }
+
   // ---------- API pública do perfil ----------
   const pub = p.match(/^\/api\/p\/([a-z0-9._]{3,20})\/(now|control|queue|search|pedido|feedback|codigo|chamar|chamado)$/);
   if (pub) return publicApi(req, env, url, pub[1], pub[2]);
@@ -215,7 +254,7 @@ async function publicApi(req, env, url, username, action) {
     const out = { status: row.status, pickup: row.lat != null ? { lat: row.lat, lng: row.lng } : null };
     // Posição do motorista só pra quem fez o chamado, e só depois do aceite
     if (row.status === "aceito" && row.token && row.token === url.searchParams.get("t")) {
-      const loc = await env.DB.prepare(`SELECT lat,lng,at FROM driver_locations WHERE user_id=? AND at>?`).bind(user.id, Date.now() - 10 * 60 * 1000).first();
+      const loc = await env.DB.prepare(`SELECT lat,lng,at FROM driver_locations WHERE user_id=? AND at>? AND (acc IS NULL OR acc>=0)`).bind(user.id, Date.now() - 10 * 60 * 1000).first();
       if (loc) out.driver = { lat: loc.lat, lng: loc.lng, at: loc.at };
       out.car = p.car || "";
     }
@@ -421,6 +460,16 @@ async function driverApi(req, env, url, p, me, secure) {
       return json({ ok: true });
     }
     const lat = Number(b.lat), lng = Number(b.lng);
+    // Ficar online antes do GPS responder (ou com a localização negada): marca online e guarda a última posição.
+    // Sem posição nenhuma, usa o centro da cidade com acc=-1, que não aparece no mapa.
+    if (b.online === true && (b.lat == null || b.lng == null)) {
+      const c = cityOf(env);
+      await env.DB.prepare(
+        `INSERT INTO driver_locations(user_id,lat,lng,acc,speed,at,online) VALUES(?,?,?,-1,NULL,?,1)
+         ON CONFLICT(user_id) DO UPDATE SET at=excluded.at,online=1`
+      ).bind(me.id, c.lat, c.lng, now).run();
+      return json({ ok: true });
+    }
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return json({ error: "Localização inválida." }, 400);
     if (tooMany("loc" + me.id, 40, 60 * 1000)) return json({ ok: true, ignorado: true });
     const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
@@ -436,8 +485,8 @@ async function driverApi(req, env, url, p, me, secure) {
     // Motoristas online: atualizaram nos últimos 15 minutos
     const { results: online } = await env.DB.prepare(
       `SELECT l.user_id,l.lat,l.lng,l.at,u.username,p.data FROM driver_locations l JOIN users u ON u.id=l.user_id LEFT JOIN profiles p ON p.user_id=l.user_id
-       WHERE l.online=1 AND l.at>?`
-    ).bind(Date.now() - 15 * 60 * 1000).all();
+       WHERE l.online=1 AND l.at>? AND (l.acc IS NULL OR l.acc>=0)`
+    ).bind(Date.now() - ONLINE_MS).all();
     const motoristas = online.map((r) => {
       const d = r.data ? JSON.parse(r.data) : {};
       return { username: r.username, name: d.name || r.username, car: d.car || "", whatsapp: d.whatsapp || "", avatar: d.hasAvatar ? `/img/${r.user_id}/avatar?v=${d.avatarVersion}` : "",
@@ -531,7 +580,7 @@ async function driverApi(req, env, url, p, me, secure) {
         ownerWhatsapp: ownerWhatsapp(env),
         ownerName: env.DRIVER_NAME || "o administrador",
       },
-      online: !!(await env.DB.prepare(`SELECT online FROM driver_locations WHERE user_id=? AND online=1 AND at>?`).bind(me.id, Date.now() - 15 * 60 * 1000).first()),
+      online: !!(await env.DB.prepare(`SELECT online FROM driver_locations WHERE user_id=? AND online=1 AND at>?`).bind(me.id, Date.now() - ONLINE_MS).first()),
       pendingRequests: pend?.n || 0,
       city: cityOf(env),
       feedbackCount: fb?.n || 0,
@@ -581,14 +630,27 @@ async function driverApi(req, env, url, p, me, secure) {
 
   // ---- Chamados de passageiros
   if (p === "/api/chamados" && m === "GET") {
-    const { results } = await env.DB.prepare(`SELECT * FROM ride_calls WHERE driver_id=? AND created_at>? ORDER BY id DESC LIMIT 20`)
-      .bind(me.id, Date.now() - 3 * 3600 * 1000).all();
-    return json({ chamados: results });
+    const now = Date.now();
+    const online = await env.DB.prepare(`SELECT 1 FROM driver_locations WHERE user_id=? AND online=1 AND at>?`).bind(me.id, now - ONLINE_MS).first();
+    const { results } = await env.DB.prepare(
+      `SELECT * FROM ride_calls WHERE (driver_id=? AND created_at>?) OR (?=1 AND driver_id=0 AND status='novo' AND created_at>?) ORDER BY id DESC LIMIT 30`
+    ).bind(me.id, now - 3 * 3600 * 1000, online ? 1 : 0, now - OPEN_CALL_MS).all();
+    return json({ chamados: results.map(({ token, ...c }) => ({ ...c, aberto: c.driver_id === 0 })) });
   }
   const ch = p.match(/^\/api\/chamados\/(\d+)\/(aceitar|recusar|concluir)$/);
   if (ch && m === "POST") {
     const st = { aceitar: "aceito", recusar: "recusado", concluir: "concluido" }[ch[2]];
-    await env.DB.prepare(`UPDATE ride_calls SET status=? WHERE id=? AND driver_id=?`).bind(st, Number(ch[1]), me.id).run();
+    const id = Number(ch[1]);
+    const row = await env.DB.prepare(`SELECT driver_id,status FROM ride_calls WHERE id=?`).bind(id).first();
+    if (row && row.driver_id === 0) {
+      // Chamado aberto: recusar só some pra este motorista; aceitar é de quem tocar primeiro
+      if (st !== "aceito") return json({ ok: true });
+      const r = await env.DB.prepare(`UPDATE ride_calls SET driver_id=?,status='aceito' WHERE id=? AND driver_id=0 AND status='novo'`).bind(me.id, id).run();
+      if (!r.meta.changes) return json({ error: "Outro motorista já aceitou ou o passageiro cancelou." }, 409);
+      return json({ ok: true });
+    }
+    if (!row || row.driver_id !== me.id) return json({ error: "Outro motorista já aceitou ou o passageiro cancelou." }, 409);
+    await env.DB.prepare(`UPDATE ride_calls SET status=? WHERE id=? AND driver_id=?`).bind(st, id, me.id).run();
     return json({ ok: true });
   }
 

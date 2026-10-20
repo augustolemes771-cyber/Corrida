@@ -686,7 +686,7 @@ details.howto ol b{color:var(--fg)}
   <div class="offer-card">
     <div id="offerMap"></div>
     <div class="offer-body">
-      <div class="offer-tag">Corrida particular · Driver Hub</div>
+      <div class="offer-tag" id="ofTag">Corrida particular · Driver Hub</div>
       <div class="offer-eta" id="ofEta">Calculando rota…</div>
       <div class="offer-who"><span class="ava" id="ofAva"></span><b id="ofName"></b></div>
       <div class="offer-row"><span class="dotp"></span><div><small>Embarque</small><b id="ofAddr">Buscando endereço…</b></div></div>
@@ -995,9 +995,12 @@ details.howto ol b{color:var(--fg)}
   var reqs=[];
   // ================= Chamados de passageiros =================
   var seenCalls=null;
+  // Chamados abertos que este motorista recusou (somem só pra ele)
+  var ocultos=[]; try{ ocultos=JSON.parse(localStorage.getItem("chamadosOcultos")||"[]"); }catch(e){}
+  function ocultar(id){ ocultos.push(Number(id)); ocultos=ocultos.slice(-50); try{ localStorage.setItem("chamadosOcultos",JSON.stringify(ocultos)); }catch(e){} }
   function pollCalls(){
     call("GET","/api/chamados").then(function(x){
-      if(!x.ok) return; var list=x.j.chamados||[];
+      if(!x.ok) return; var list=(x.j.chamados||[]).filter(function(c){ return !(c.aberto&&ocultos.indexOf(c.id)>=0); });
       var novos=list.filter(function(c){ return c.status==="novo"; });
       if(seenCalls){ var chegou=novos.filter(function(c){ return seenCalls.indexOf(c.id)<0; });
         if(chegou.length){ showOffer(chegou[0]); } }
@@ -1009,7 +1012,7 @@ details.howto ol b{color:var(--fg)}
       var me=S.saved.name||S.me.user.username;
       $("callList").innerHTML=vis.map(function(c){
         var fone=String(c.phone||"").replace(/^55(?=\d{10,11}$)/,""), wa="https://wa.me/55"+fone+"?text="+encodeURIComponent("Oi "+c.name+", aqui é "+me+" do Driver Hub. "+(c.status==="aceito"?"Tô indo te buscar!":"Vi seu chamado."));
-        return '<div class="slot" data-call="'+c.id+'"><div class="row between"><b>'+esc(c.name)+'</b><span class="tagline '+(c.status==="aceito"?"ok":"warn")+'">'+(c.status==="aceito"?"Aceito":"Novo")+' · '+ago(c.created_at)+'</span></div>'+
+        return '<div class="slot" data-call="'+c.id+'"><div class="row between"><b>'+esc(c.name)+'</b><span class="tagline '+(c.status==="aceito"?"ok":"warn")+'">'+(c.status==="aceito"?"Aceito":c.aberto?"Aberto pra todos":"Novo")+' · '+ago(c.created_at)+'</span></div>'+
           (c.note?'<span>“'+esc(c.note)+'”</span>':'')+
           '<div class="row" style="flex-wrap:wrap;gap:8px">'+
           (c.status==="novo"?'<button class="btn sm primary" type="button" data-ca="aceitar">Aceitar</button><button class="btn sm danger" type="button" data-ca="recusar">Recusar</button>':'<button class="btn sm" type="button" data-ca="concluir">Concluir</button>')+
@@ -1035,6 +1038,7 @@ details.howto ol b{color:var(--fg)}
   }
   function showOffer(c){
     offerCall=c; beep();
+    $("ofTag").textContent=c.aberto?"Chamado aberto · quem aceitar primeiro leva":"Corrida particular · Driver Hub";
     $("ofName").textContent=c.name; $("ofAva").textContent=(c.name||"?").charAt(0).toUpperCase();
     $("ofNote").hidden=!c.note; $("ofNote").textContent=c.note?"“"+c.note+"”":"";
     $("ofEta").textContent=c.lat!=null?"Calculando rota…":"Sem localização"; $("ofAddr").textContent=c.lat!=null?"Buscando endereço…":(c.note||"Combine pelo WhatsApp");
@@ -1061,17 +1065,20 @@ details.howto ol b{color:var(--fg)}
   function closeOffer(){ clearInterval(offerTimer); $("offer").hidden=true; offerCall=null; pollCalls(); }
   $("ofAccept").addEventListener("click",function(){
     var c=offerCall; if(!c) return;
-    call("POST","/api/chamados/"+c.id+"/aceitar").then(function(){
+    call("POST","/api/chamados/"+c.id+"/aceitar").then(function(x){
+      if(!x.ok){ toast(x.j.error||"Não deu pra aceitar."); closeOffer(); return; }
       // O passageiro acompanha o carro: liga o modo online se estiver desligado
       if(!ON.on) startOnline(true);
       toast("Aceito! Avise "+c.name+" no WhatsApp."); closeOffer(); go("inicio");
     });
   });
-  $("ofReject").addEventListener("click",function(){ var c=offerCall; if(c) call("POST","/api/chamados/"+c.id+"/recusar"); closeOffer(); });
+  $("ofReject").addEventListener("click",function(){ var c=offerCall; if(c){ if(c.aberto) ocultar(c.id); call("POST","/api/chamados/"+c.id+"/recusar"); } closeOffer(); });
 
   $("callList").addEventListener("click",function(e){
     var b=e.target.closest("[data-ca]"); if(!b) return; var id=b.closest("[data-call]").dataset.call;
-    b.disabled=true; if(b.dataset.ca==="aceitar"&&!ON.on) startOnline(true); call("POST","/api/chamados/"+id+"/"+b.dataset.ca).then(pollCalls);
+    if(b.dataset.ca==="recusar") ocultar(id);
+    b.disabled=true; if(b.dataset.ca==="aceitar"&&!ON.on) startOnline(true);
+    call("POST","/api/chamados/"+id+"/"+b.dataset.ca).then(function(x){ if(!x.ok) toast(x.j.error||"Não deu certo."); pollCalls(); });
   });
 
   function pollRequests(){
@@ -1287,37 +1294,60 @@ details.howto ol b{color:var(--fg)}
     ON.last=now; ON.pos=p;
     fetch("/api/localizacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p),credentials:"same-origin",keepalive:true}).catch(function(){});
   }
+  // Ficar online: o servidor marca na hora; a localização vem depois. Se o GPS falhar, continua online e avisa.
   function startOnline(quiet){
     if(ON.on) return;
+    ON.on=true; ON.last=0; try{ localStorage.setItem("online","1"); }catch(e){}
+    renderOnline();
+    if(!quiet){ chime(true); toast("Você está online"); }
+    call("POST","/api/localizacao",{online:true});
+    clearInterval(ON.beat);
+    ON.beat=setInterval(function(){ if(ON.on&&Date.now()-ON.last>4*60000) call("POST","/api/localizacao",{online:true}); },5*60000);
+    try{ startTracking(); }catch(e){ semGps(); }
+  }
+  function semGps(msg){ if(ON.on) toast(msg||"Você está online, mas sem localização. Libere a localização pro Driver Hub."); }
+  function startTracking(){
     if(RAST){
       RAST.iniciar({url:location.origin+"/api/localizacao"}).catch(function(e){
-        if(e&&e.code==="NOT_AUTHORIZED"&&confirm("O Driver Hub precisa da sua localização pra ficar online. Abrir as configurações do app?")) RAST.abrirConfiguracoes();
-        else if(e&&e.message) toast(e.message);
-        stopOnline();
+        if(e&&e.code==="NOT_AUTHORIZED"&&confirm("Você está online, mas o Driver Hub precisa da sua localização pra aparecer no mapa. Abrir as configurações do app?")) RAST.abrirConfiguracoes();
+        else semGps(e&&e.message);
       });
     } else if(NATIVE&&BG){
       BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
         function(loc,err){
           if(err){
-            if(err.code==="NOT_AUTHORIZED"&&confirm("O Driver Hub precisa da sua localização pra ficar online. Abrir as configurações?")) BG.openSettings();
-            stopOnline(); return;
+            if(err.code==="NOT_AUTHORIZED"&&confirm("Você está online, mas o Driver Hub precisa da sua localização pra aparecer no mapa. Abrir as configurações?")) BG.openSettings();
+            else semGps(); return;
           }
           if(loc) sendLoc({lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed});
-        }).then(function(id){ ON.watch=id; });
-    } else {
-      if(!navigator.geolocation){ if(!quiet) toast("Seu navegador não deixa pegar a localização."); return; }
+        }).then(function(id){ ON.watch=id; }).catch(function(){ semGps(); });
+    } else if(navigator.geolocation){
       ON.watch=navigator.geolocation.watchPosition(function(pos){ sendLoc({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,speed:pos.coords.speed}); },
-        function(e){ if(e.code===1){ toast("Libere a localização pro Driver Hub nas configurações do navegador."); stopOnline(); } },
+        function(e){ if(e.code===1) semGps("Você está online, mas sem localização. Libere a localização nas configurações do navegador."); },
         {enableHighAccuracy:true,maximumAge:15000,timeout:30000});
-    }
-    ON.on=true; try{ localStorage.setItem("online","1"); }catch(e){}
-    renderOnline(); if(!quiet) toast("Você está online");
+    } else semGps();
   }
   function stopOnline(){
-    if(RAST) RAST.parar(); else if(NATIVE&&BG&&ON.watch) BG.removeWatcher({id:ON.watch}); else if(ON.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(ON.watch);
+    try{ if(RAST) RAST.parar(); else if(NATIVE&&BG&&ON.watch) BG.removeWatcher({id:ON.watch}); else if(ON.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(ON.watch); }catch(e){}
+    clearInterval(ON.beat);
     var was=ON.on; ON.watch=null; ON.on=false; ON.pos=null; try{ localStorage.removeItem("online"); }catch(e){}
-    if(was) call("POST","/api/localizacao",{online:false});
+    if(was){ call("POST","/api/localizacao",{online:false}); chime(false); }
     renderOnline();
+  }
+  // Som curto e limpo: duas notas suaves, subindo (online) ou descendo (offline)
+  var actx=null;
+  function chime(up){
+    try{
+      actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended") actx.resume();
+      var t0=actx.currentTime+0.02, notes=up?[659.25,987.77]:[987.77,659.25];
+      notes.forEach(function(f,i){
+        var o=actx.createOscillator(), g=actx.createGain(), t=t0+i*0.11;
+        o.type="sine"; o.frequency.value=f; o.connect(g); g.connect(actx.destination);
+        g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.16,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+0.42);
+        o.start(t); o.stop(t+0.45);
+      });
+    }catch(e){}
+    try{ navigator.vibrate&&navigator.vibrate(up?[12,60,12]:12); }catch(e){}
   }
   function renderOnline(){
     $("onlineSw").setAttribute("aria-checked",String(ON.on));

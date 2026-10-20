@@ -99,6 +99,34 @@ input::placeholder{color:var(--muted);opacity:.8}
 .sheet .x{position:absolute;right:12px;top:10px;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);display:grid;place-items:center;padding:0}
 .sheet .favl{position:absolute;right:56px;top:10px}
 
+/* Chamar motorista (chamado aberto pra todos os motoristas online) */
+.callfab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--nav) + 16px + env(safe-area-inset-bottom,0px));z-index:900;display:inline-flex;align-items:center;gap:10px;
+  border:0;border-radius:999px;background:var(--accent);color:var(--ink);font-weight:800;font-size:17px;padding:15px 24px;box-shadow:0 12px 26px -10px rgba(0,0,0,.9);white-space:nowrap}
+.callfab svg{width:22px;height:22px}
+#v-mapa .locbtn{bottom:86px}
+#v-motoristas{padding-bottom:calc(var(--nav) + 110px + env(safe-area-inset-bottom,0px))}
+.callwrap{position:fixed;inset:0;z-index:1500;background:rgba(4,5,10,.6);display:flex;align-items:flex-end;justify-content:center}
+.callbox{width:100%;max-width:520px;max-height:92vh;overflow-y:auto;background:var(--panel);border-radius:22px 22px 0 0;padding:18px 18px calc(20px + env(safe-area-inset-bottom,0px));
+  display:flex;flex-direction:column;gap:14px;animation:up .26s cubic-bezier(.2,.9,.3,1);position:relative}
+.callbox h2{font-size:30px}
+.callbox textarea{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;min-height:70px;resize:vertical}
+.callbox .x{position:absolute;right:12px;top:12px;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);display:grid;place-items:center;padding:0}
+.gps{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--muted)}
+.gps.ok{color:var(--ok)}
+.radar{position:relative;width:120px;height:120px;margin:10px auto}
+.radar i{position:absolute;inset:0;border-radius:50%;border:2px solid var(--accent);opacity:0;animation:radar 2.4s ease-out infinite}
+.radar i:nth-child(2){animation-delay:.8s}.radar i:nth-child(3){animation-delay:1.6s}
+.radar b{position:absolute;inset:38px;border-radius:50%;background:var(--accent);display:grid;place-items:center;color:var(--ink)}
+.radar b svg{width:26px;height:26px}
+@keyframes radar{0%{transform:scale(.35);opacity:.9}100%{transform:scale(1);opacity:0}}
+.searching{text-align:center;font-size:22px;font-weight:800;animation:pisca 1.6s ease-in-out infinite}
+@keyframes pisca{0%,100%{opacity:1}50%{opacity:.4}}
+@media (prefers-reduced-motion:reduce){.radar i,.searching{animation:none}.radar i{opacity:.4}}
+.drvok{display:flex;align-items:center;gap:14px;background:var(--panel2);border-radius:16px;padding:14px}
+.drvok b{display:block;font-size:19px}
+.drvok small{display:block;color:var(--muted)}
+.btn.wa{background:#3ddc84;border-color:#3ddc84;color:#06210f;font-weight:800}
+
 /* Conta */
 .benefits{display:flex;flex-direction:column;gap:2px;background:var(--line);border:1.5px solid var(--line);border-radius:18px;overflow:hidden}
 .benefits div{display:flex;gap:12px;align-items:flex-start;background:var(--panel);padding:14px}
@@ -196,6 +224,24 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     <button class="btn block" type="button" id="logout">Sair da conta</button>
   </div>
 </main>
+
+<button type="button" class="callfab" id="callFab" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM3 17h18v3H3zM7 20v1.5M17 20v1.5"/></svg>Chamar motorista</button>
+<div class="callwrap" id="callWrap" hidden role="dialog" aria-modal="true" aria-labelledby="callTitle">
+  <div class="callbox">
+    <button type="button" class="x" id="callClose" aria-label="Fechar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <form id="callForm" class="stack" novalidate>
+      <h2 id="callTitle">Chamar motorista</h2>
+      <p class="hint">O chamado vai pra todos os motoristas online. O primeiro que aceitar vai te buscar e fala com você no WhatsApp.</p>
+      <label class="f">Seu nome<input name="name" maxlength="40" autocomplete="name"></label>
+      <label class="f">Seu WhatsApp <small>Com DDD.</small><input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(64) 9 0000-0000"></label>
+      <label class="f">Onde você está <small>Ponto de referência, portão, cor da roupa…</small><textarea name="note" maxlength="160"></textarea></label>
+      <div class="gps" id="callGps">Pegando sua localização…</div>
+      <button class="btn primary block" type="submit">Chamar agora</button>
+      <div class="msg" id="callMsg" role="status"></div>
+    </form>
+    <div id="callState" class="stack" hidden aria-live="polite"></div>
+  </div>
+</div>
 
 <nav class="pnav" aria-label="Driver Hub">
   <a href="/" id="navMe"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM3 17h18v3H3zM7 20v1.5M17 20v1.5M8.5 13.5h.01M15.5 13.5h.01"/></svg>Motorista</a>
@@ -344,6 +390,71 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     call("POST","/api/entrar",{username:$("inUser").value,password:$("inPass").value}).then(function(x){
       if(x.ok) back(); else { $("inMsg").textContent=x.j.error||"Não deu certo."; $("inMsg").className="msg err"; } }); });
   $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(x){ if(x.j&&x.j.voltou){ location.href="/painel"; return; } location.href=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()?"/app":"/conta"; }); });
+
+  // ---------- Chamar motorista ----------
+  var CALL=null, callPos=null, callTimer=null;
+  try{ CALL=JSON.parse(localStorage.getItem("chamadoAberto")||"null"); }catch(e){}
+  function saveCall(){ try{ if(CALL) localStorage.setItem("chamadoAberto",JSON.stringify(CALL)); else localStorage.removeItem("chamadoAberto"); }catch(e){} }
+  function openCall(){
+    $("callWrap").hidden=false;
+    if(CALL){ showCallState(); pollCall(); return; }
+    $("callForm").hidden=false; $("callState").hidden=true; $("callMsg").textContent="";
+    var f=$("callForm"), saved={}; try{ saved=JSON.parse(localStorage.getItem("meusDados")||"{}"); }catch(e){}
+    if(!f.name.value) f.name.value=saved.name||(me&&me.name)||""; if(!f.phone.value) f.phone.value=saved.phone||"";
+    callPos=null; $("callGps").className="gps"; $("callGps").textContent="Pegando sua localização…";
+    if(!navigator.geolocation){ $("callGps").textContent="Sem localização: escreva onde você está."; return; }
+    navigator.geolocation.getCurrentPosition(function(p){ callPos={lat:p.coords.latitude,lng:p.coords.longitude}; $("callGps").className="gps ok"; $("callGps").textContent="✓ Usando sua localização atual"; },
+      function(){ $("callGps").textContent="Sem localização: escreva bem onde você está."; },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+  }
+  function closeCall(){ $("callWrap").hidden=true; clearTimeout(callTimer); }
+  $("callFab").addEventListener("click",openCall);
+  $("callClose").addEventListener("click",closeCall);
+  $("callWrap").addEventListener("click",function(e){ if(e.target===this) closeCall(); });
+  $("callForm").addEventListener("submit",function(e){
+    e.preventDefault(); var f=this, btn=f.querySelector("button[type=submit]");
+    try{ localStorage.setItem("meusDados",JSON.stringify({name:f.name.value,phone:f.phone.value})); }catch(_){}
+    btn.disabled=true; $("callMsg").className="msg"; $("callMsg").textContent="Chamando…";
+    call("POST","/api/chamar",{name:f.name.value,phone:f.phone.value,note:f.note.value,lat:callPos&&callPos.lat,lng:callPos&&callPos.lng}).then(function(x){
+      btn.disabled=false;
+      if(!x.ok){ $("callMsg").className="msg err"; $("callMsg").textContent=x.j.error||"Não deu certo."; var el=f[x.j.field]; if(el) el.focus(); return; }
+      CALL={id:x.j.id,t:x.j.token,status:"novo",online:x.j.online,at:Date.now()}; saveCall(); f.note.value="";
+      showCallState(); pollCall();
+    });
+  });
+  function showCallState(){
+    $("callForm").hidden=true; var box=$("callState"); box.hidden=false; var c=CALL, d=c.driver, E=esc;
+    var WA='<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/></svg>';
+    if(c.status==="novo") box.innerHTML='<div class="radar" aria-hidden="true"><i></i><i></i><i></i><b>'+CAR+'</b></div><p class="searching">Procurando motorista…</p>'+
+      '<p class="hint" style="text-align:center">Avisamos '+(c.online>1?c.online+" motoristas online":"o motorista online")+'. Fica de olho no WhatsApp.</p><button class="btn block" type="button" data-cancel>Cancelar chamado</button>';
+    else if(c.status==="aceito"&&d){
+      var ava=d.avatar?'<img class="dava" src="'+E(d.avatar)+'" alt="">':'<div class="dava" aria-hidden="true">'+E((d.name||"?").charAt(0).toUpperCase())+'</div>';
+      var dist=d.pos&&callPos?DHMap.km(DHMap.distKm(callPos,d.pos)):"";
+      box.innerHTML='<h2 style="color:var(--ok)">Motorista a caminho</h2><div class="drvok">'+ava+'<div><b>'+E(d.name)+'</b><small>'+E(d.car||"@"+d.username)+(dist?" · a "+dist:"")+'</small></div></div>'+
+        (d.whatsapp?'<a class="btn wa block" href="https://wa.me/'+E(d.whatsapp)+'?text='+encodeURIComponent("Oi "+d.name+", sou eu que chamei pelo Driver Hub!")+'" target="_blank" rel="noopener">'+WA+'Falar no WhatsApp</a>':'')+
+        '<a class="btn block" href="/'+E(d.username)+'#perfil">Ver página do motorista</a><button class="btn block" type="button" data-cancel style="color:var(--err)">Cancelar</button>';
+    } else {
+      var msg={expirou:["Ninguém aceitou a tempo","Os motoristas podem estar ocupados. Tente de novo."],concluido:["Corrida concluída","Valeu por usar o Driver Hub!"],recusado:["Chamado recusado","Tente de novo."]}[c.status]||["Chamado encerrado",""];
+      box.innerHTML='<h2>'+msg[0]+'</h2><p class="hint">'+msg[1]+'</p><button class="btn primary block" type="button" data-again>Chamar de novo</button>';
+      CALL=null; saveCall();
+    }
+  }
+  function pollCall(){
+    clearTimeout(callTimer); if(!CALL||$("callWrap").hidden) return;
+    call("GET","/api/chamado?id="+CALL.id+"&t="+encodeURIComponent(CALL.t)).then(function(x){
+      if(!CALL) return;
+      if(x.ok){ var was=CALL.status; CALL.status=x.j.status==="sumiu"?"cancelado":x.j.status; CALL.driver=x.j.driver||null; saveCall();
+        if(was==="novo"&&CALL.status==="aceito"){ try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){} }
+        showCallState(); }
+      if(CALL&&(CALL.status==="novo"||CALL.status==="aceito")) callTimer=setTimeout(pollCall,CALL.status==="novo"?4000:10000);
+    });
+  }
+  $("callState").addEventListener("click",function(e){
+    if(e.target.closest("[data-again]")){ CALL=null; saveCall(); openCall(); return; }
+    if(e.target.closest("[data-cancel]")&&CALL&&confirm("Cancelar o chamado?")){
+      call("POST","/api/chamado?id="+CALL.id+"&t="+encodeURIComponent(CALL.t)).then(function(){ CALL=null; saveCall(); closeCall(); });
+    }
+  });
+  if(view==="motoristas"||view==="mapa"){ $("callFab").hidden=false; if(CALL&&(CALL.status==="novo"||CALL.status==="aceito")) openCall(); }
 
   // ---------- Início ----------
   Promise.all([call("GET","/api/conta"),call("GET","/api/favoritos")]).then(function(r){
