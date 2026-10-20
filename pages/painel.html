@@ -140,65 +140,14 @@ details.howto ol b{color:var(--fg)}
 .photo{display:flex;align-items:center;gap:16px}
 .photo .ava{width:84px;height:84px;font-size:38px;border-width:3px}
 
-/* Página: temas e módulos */
-.swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.sw{border:2px solid var(--line);border-radius:14px;padding:0;overflow:hidden;background:none;text-align:left}
-.sw[aria-checked=true]{border-color:var(--fg)}
-.sw .pv{display:flex;flex-direction:column;gap:5px;padding:12px 10px;height:74px}
-.sw .pv i{display:block;height:7px;border-radius:4px}
-.sw .pv i:first-child{width:70%;height:12px}
-.sw .pv i:nth-child(2){width:45%}
-.sw span{display:block;font-size:13px;font-weight:700;padding:7px 10px;background:var(--panel2);color:var(--fg)}
-.fonts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.fonts button{border:2px solid var(--line);border-radius:14px;background:var(--bg);padding:12px 6px;display:flex;flex-direction:column;align-items:center;gap:2px}
-.fonts button[aria-checked=true]{border-color:var(--accent)}
-.fonts b{font-size:26px;line-height:1.1}
-.fonts small{font-size:12px;color:var(--muted);font-weight:600}
+/* Chips e chaves */
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips button{border:1.5px solid var(--line);background:var(--bg);border-radius:999px;padding:9px 14px;font-weight:600;font-size:15px}
 .chips button[aria-pressed=true],.chips button[aria-checked=true]{background:var(--accent);color:var(--ink);border-color:var(--accent)}
-.color{display:flex;align-items:center;gap:10px}
-.color input[type=color]{width:52px;height:44px;padding:4px;border-radius:10px;cursor:pointer}
-.mods{display:flex;flex-direction:column;gap:8px}
-.mod{border:1.5px solid var(--line);border-radius:14px;background:var(--bg)}
-.mod .head{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px}
-.mod .head .t{flex:1;min-width:0}
-.mod .head b{display:block;font-weight:800}
-.mod .head small{display:block;color:var(--muted);font-size:13px}
-.mod .body{border-top:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px}
-.mv{width:36px;height:36px;border-radius:10px;border:1.5px solid var(--line);background:var(--panel2);display:grid;place-items:center;padding:0}
-.mv:disabled{opacity:.35}
-.mv svg{width:18px;height:18px}
 .switch{position:relative;width:52px;height:32px;border-radius:16px;border:0;background:var(--line);padding:0;flex:none;transition:background .2s}
 .switch::after{content:"";position:absolute;top:4px;left:4px;width:24px;height:24px;border-radius:50%;background:var(--fg);transition:transform .2s cubic-bezier(.2,.9,.3,1)}
 .switch[aria-checked=true]{background:var(--ok)}
 .switch[aria-checked=true]::after{transform:translateX(20px)}
-.linkrow{display:grid;grid-template-columns:1fr 1.4fr 40px;gap:8px}
-.linkrow .mv{width:40px;height:48px}
-
-/* Prévia ao vivo */
-.pvcontrols{display:flex;flex-direction:column;gap:18px;min-width:0}
-.pv{position:sticky;top:var(--toph,64px);z-index:8;margin:-20px -16px 0;padding:10px 16px 0;background:var(--bg);
-  box-shadow:0 12px 16px -12px rgba(0,0,0,.7)}
-.pvscreen{position:relative;height:38vh;min-height:220px;border:1.5px solid var(--line);border-radius:16px;overflow:hidden;background:var(--panel);
-  transition:height .3s cubic-bezier(.2,.9,.3,1)}
-.pv.big .pvscreen{height:68vh}
-.pv.min .pvscreen{display:none}
-.pvscreen iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent}
-.pvload{position:absolute;right:10px;top:10px;font-size:12px;font-weight:700;background:var(--fg);color:var(--bg);border-radius:8px;padding:4px 8px}
-.pvbar{display:flex;align-items:center;gap:18px;padding:10px 2px 12px}
-.pvlabel{flex:1;display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px}
-.live{width:8px;height:8px;border-radius:50%;background:var(--ok)}
-@media (prefers-reduced-motion:reduce){.pvscreen{transition:none}}
-@media (min-width:900px){
-  main.wide{max-width:1040px}
-  #v-pagina:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:32px;align-items:start}
-  #v-pagina .pv{order:2;top:calc(var(--toph,64px) + 20px);margin:0;padding:0;box-shadow:none;background:none}
-  #v-pagina .pvscreen,#v-pagina .pv.big .pvscreen{height:min(760px,calc(100vh - var(--toph,64px) - 110px));border:10px solid #05060c;border-radius:40px;
-    box-shadow:0 30px 60px -30px rgba(0,0,0,.8),0 0 0 1.5px var(--line)}
-  #v-pagina .pv.min .pvscreen{display:block}
-  #pvSize,#pvHide{display:none}
-}
 
 /* Música */
 .status{display:flex;align-items:center;gap:10px;font-weight:700;background:var(--bg);border-radius:12px;padding:12px 14px}
@@ -357,43 +306,7 @@ details.howto ol b{color:var(--fg)}
         </div>
         <label class="f">Nome no Pix <small>Como aparece no banco, até 25 letras.</small><input data-k="pixName" maxlength="25"></label>
         <label class="f">Cidade no Pix<input data-k="pixCity" maxlength="15"></label>
-        <p class="hint">Pra aparecer no seu perfil, ligue o bloco Pix na aba Página.</p>
-      </div>
-    </section>
-
-    <!-- Página -->
-    <section class="view" id="v-pagina" aria-labelledby="h-pagina" hidden>
-      <div class="pv" id="pv">
-        <div class="pvscreen" id="pvScreen">
-          <iframe title="Prévia do seu perfil" tabindex="-1"></iframe>
-          <iframe title="Prévia do seu perfil" tabindex="-1" style="visibility:hidden"></iframe>
-          <span class="pvload" id="pvLoad" hidden>Atualizando…</span>
-        </div>
-        <div class="pvbar">
-          <span class="pvlabel"><i class="live"></i>Prévia ao vivo</span>
-          <button class="linkbtn" type="button" id="pvSize">Ampliar</button>
-          <button class="linkbtn" type="button" id="pvHide">Esconder</button>
-        </div>
-      </div>
-      <div class="pvcontrols">
-      <h2 id="h-pagina">O que aparece</h2>
-      <p class="hint" style="margin-top:-8px">Ligue, desligue e mude a ordem. O de cima aparece primeiro.</p>
-      <div class="mods" id="mods"></div>
-
-      <h2>Cara da página</h2>
-      <div class="block">
-        <div class="stack" style="gap:8px"><b>Tema</b><div class="swatches" id="themes" role="radiogroup" aria-label="Tema"></div></div>
-        <div class="stack" style="gap:8px"><b>Cor de destaque</b>
-          <div class="color"><input type="color" id="accent" aria-label="Cor de destaque"><button class="linkbtn" type="button" id="accentReset">Usar a cor do tema</button></div></div>
-        <div class="stack" style="gap:8px"><b>Letra dos títulos</b><div class="fonts" id="fonts" role="radiogroup" aria-label="Letra dos títulos"></div></div>
-        <div class="stack" style="gap:8px"><b>Fundo</b>
-          <div class="chips" id="bgs" role="radiogroup" aria-label="Fundo"></div>
-          <input type="file" id="bgFile" accept="image/*" hidden>
-          <p class="hint" id="bgHint">A foto fica apagada atrás do texto, sem atrapalhar a leitura.</p>
-        </div>
-        <label class="f">Título <small>Coloque *asteriscos* na palavra que vai ficar colorida.</small><input id="headline" maxlength="40"></label>
-        <label class="f">Frase abaixo do título<input id="sub" maxlength="90"></label>
-      </div>
+        <p class="hint">Pra aparecer no seu perfil, adicione a função Pix em Página.</p>
       </div>
     </section>
 
@@ -456,13 +369,6 @@ details.howto ol b{color:var(--fg)}
   "use strict";
   var $ = function(id){ return document.getElementById(id); };
   var S = { me:null, saved:null, draft:null, tags:[], view:"inicio" };
-  var THEMES = {
-    noite:["Noite","#0c0e1a","#151829","#ffb347","#eef0fa"], grafite:["Grafite","#111214","#1b1d21","#e4ff5c","#f2f2ef"],
-    floresta:["Floresta","#0a1410","#13221b","#8be28f","#edf5ef"], vinho:["Vinho","#170b11","#24131b","#ff6b86","#f8eef2"],
-    oceano:["Oceano","#06141a","#0e2029","#3fd6ea","#e9f6fa"], claro:["Claro","#f4f2ec","#ffffff","#d9480f","#18171c"]
-  };
-  var FONTS = { poster:["Pôster",'"Big Shoulders Display"',"900","AaZ"], redonda:["Redonda",'"Fredoka"',"700","AaZ"], classica:["Clássica",'"Bodoni Moda"',"800","AaZ"] };
-  var BGS = { nenhum:"Sem foto", lobo:"Lobo", foto:"Minha foto" };
   var MODS = {
     whatsapp:["Botão do WhatsApp","Faixa verde no topo pra te chamar"],
     musica:["Música","Passageiro escolhe ou pede a música"],
@@ -527,13 +433,13 @@ details.howto ol b{color:var(--fg)}
       S.me=x.j; S.tags=x.j.tags; S.saved=x.j.profile; S.draft=clone(S.saved);
       $("auth").hidden=true; $("app").hidden=false;
       renderAll();
-      go(S.fresh?"perfil":(location.hash.slice(1)||"inicio"));
+      go(S.fresh?"perfil":(location.hash.slice(1).replace("pagina","")||"inicio"));
       if(S.fresh) toast("Conta criada! Complete seu perfil.");
       pollRequests(); setInterval(pollRequests,15000);
     });
   }
 
-  function renderAll(){ renderTop(); renderHome(); renderProfileForm(); renderPage(); renderMusic(); renderMore(); markDirty(); }
+  function renderAll(){ renderTop(); renderHome(); renderProfileForm(); renderMusic(); renderMore(); markDirty(); }
 
   function renderTop(){
     var p=S.saved, u=S.me.user;
@@ -561,7 +467,7 @@ details.howto ol b{color:var(--fg)}
     $("statusList").innerHTML=
       item("musica",'<span class="dot '+st[0]+'"></span>',st[1],st[2])+
       item("musica",'<span class="count">'+S.me.pendingRequests+'</span>',"Pedidos de música","Últimas 24 horas")+
-      item("pagina",'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>',"Na sua página",mods.join(", ")||"Nada ligado ainda")+
+      item("pagina",'<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>',"Editar minha página",(mods.join(", ")||"Nada ligado ainda")+" · toque pra mudar")+
       (S.saved.modules.some(function(m){return m.id==="pesquisa"&&m.on;})||S.me.feedbackCount ? item("mais",'<span class="count">'+S.me.feedbackCount+'</span>',"Respostas do questionário","Ver nomes, ideias e contatos") : "");
     function item(v,lead,t,s){ return '<button class="item" type="button" data-go="'+v+'">'+lead+'<span class="t"><b>'+esc(t)+'</b><small>'+esc(s)+'</small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--muted)"><path d="M9 5l7 7-7 7"/></svg></button>'; }
   }
@@ -655,7 +561,7 @@ details.howto ol b{color:var(--fg)}
       if(!x.ok){ toast(x.j.error||"Não deu pra enviar a foto."); return; }
       var keep=S.draft; S.saved=x.j.profile;
       keep.hasAvatar=S.saved.hasAvatar; keep.avatarVersion=S.saved.avatarVersion; keep.bgVersion=S.saved.bgVersion; if(kind==="fundo") keep.theme.bg="foto";
-      S.draft=keep; renderTop(); renderProfileForm(); renderPage(); markDirty(); toast("Foto salva");
+      S.draft=keep; renderTop(); renderProfileForm(); markDirty(); toast("Foto salva");
     }).catch(function(){ toast("Não deu pra ler essa imagem."); });
   }
   $("avatarFile").addEventListener("change",function(){ if(this.files[0]) upload("avatar",this.files[0]); this.value=""; });
@@ -663,107 +569,12 @@ details.howto ol b{color:var(--fg)}
     call("POST","/api/imagem",{kind:"avatar",remove:true}).then(function(x){ if(x.ok){ S.saved.hasAvatar=false; S.draft.hasAvatar=false; renderTop(); renderProfileForm(); toast("Foto removida"); } });
   });
 
-  // ================= Página =================
-  function renderPage(){
-    var d=S.draft, t=d.theme;
-    // Módulos
-    $("mods").innerHTML=d.modules.map(function(m,i){
-      var info=MODS[m.id]; if(!info) return "";
-      return '<div class="mod" data-i="'+i+'"><div class="head">'+
-        '<button class="mv" type="button" data-up aria-label="Subir '+esc(info[0])+'"'+(i===0?" disabled":"")+'><svg class="i" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>'+
-        '<button class="mv" type="button" data-down aria-label="Descer '+esc(info[0])+'"'+(i===d.modules.length-1?" disabled":"")+'><svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>'+
-        '<span class="t"><b>'+esc(info[0])+'</b><small>'+esc(info[1])+'</small></span>'+
-        '<button class="switch" type="button" role="switch" aria-checked="'+m.on+'" aria-label="Mostrar '+esc(info[0])+'" data-sw></button></div>'+
-        (m.on?modBody(m.id):"")+'</div>';
-    }).join("");
-    // Temas
-    $("themes").innerHTML=Object.keys(THEMES).map(function(k){ var c=THEMES[k];
-      return '<button type="button" class="sw" role="radio" aria-checked="'+(t.preset===k)+'" data-t="'+k+'"><span class="pv" style="background:'+c[1]+'"><i style="background:'+c[3]+'"></i><i style="background:'+c[4]+';opacity:.5"></i><i style="background:'+c[2]+';height:16px;width:100%"></i></span><span>'+c[0]+'</span></button>'; }).join("");
-    $("accent").value=t.accent||THEMES[t.preset][3];
-    $("accentReset").hidden=!t.accent;
-    $("fonts").innerHTML=Object.keys(FONTS).map(function(k){ var f=FONTS[k];
-      return '<button type="button" role="radio" aria-checked="'+(t.font===k)+'" data-f="'+k+'"><b style="font-family:'+esc(f[1])+';font-weight:'+f[2]+'">'+f[3]+'</b><small>'+f[0]+'</small></button>'; }).join("");
-    $("bgs").innerHTML=Object.keys(BGS).map(function(k){ return '<button type="button" role="radio" aria-checked="'+(t.bg===k)+'" data-b="'+k+'">'+(k==="foto"&&d.bgVersion?"Minha foto":k==="foto"?"Enviar foto":BGS[k])+'</button>'; }).join("")+
-      (d.bgVersion?'<button type="button" data-b="trocar">Trocar foto</button>':"");
-    $("headline").value=t.headline||""; $("sub").value=t.sub||"";
-  }
-  function modBody(id){
-    var d=S.draft;
-    if(id==="links") return '<div class="body"><div class="stack" id="linksEd">'+d.links.map(function(l,i){
-        return '<div class="linkrow" data-li="'+i+'"><input placeholder="Nome" maxlength="30" value="'+esc(l.label)+'" data-lk="label" aria-label="Nome do link"><input placeholder="site.com" value="'+esc(l.url)+'" data-lk="url" aria-label="Endereço do link" autocapitalize="none" inputmode="url"><button class="mv" type="button" data-ldel aria-label="Apagar link"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>';
-      }).join("")+'</div>'+(d.links.length<6?'<button class="btn sm" type="button" data-ladd>Adicionar link</button>':"")+'</div>';
-    if(id==="musica") return '<div class="body"><label class="f">Onde você toca os pedidos<select data-svc>'+Object.keys(SERVICES).map(function(k){ return '<option value="'+k+'"'+(d.music.service===k?" selected":"")+'>'+SERVICES[k]+'</option>'; }).join("")+'</select></label>'+
-      '<div class="row between"><span class="t" style="flex:1"><b style="display:block">Passageiro pode pausar, pular e mudar o volume</b><small class="hint">Só com o Spotify conectado. Desligado, ele só coloca música na fila.</small></span><button class="switch" type="button" role="switch" aria-checked="'+d.music.control+'" aria-label="Passageiro controla o player" data-ctl></button></div></div>';
-    if(id==="pix" && !d.pixKey) return '<div class="body"><p class="hint">Cadastre sua chave Pix na aba Perfil.</p></div>';
-    if(id==="instagram" && !d.instagram) return '<div class="body"><p class="hint">Coloque seu @ na aba Perfil.</p></div>';
-    return "";
-  }
-  $("mods").addEventListener("click",function(e){
-    var mod=e.target.closest(".mod"); if(!mod) return; var i=Number(mod.dataset.i), list=S.draft.modules;
-    if(e.target.closest("[data-up]")&&i>0){ var a=list.splice(i,1)[0]; list.splice(i-1,0,a); }
-    else if(e.target.closest("[data-down]")&&i<list.length-1){ var b=list.splice(i,1)[0]; list.splice(i+1,0,b); }
-    else if(e.target.closest("[data-sw]")) list[i].on=!list[i].on;
-    else if(e.target.closest("[data-ctl]")) S.draft.music.control=!S.draft.music.control;
-    else if(e.target.closest("[data-ladd]")) S.draft.links.push({label:"",url:""});
-    else if(e.target.closest("[data-ldel]")) S.draft.links.splice(Number(e.target.closest("[data-li]").dataset.li),1);
-    else return;
-    renderPage(); markDirty();
-  });
-  $("mods").addEventListener("input",function(e){
-    var r=e.target.closest("[data-li]"); if(r){ S.draft.links[Number(r.dataset.li)][e.target.dataset.lk]=e.target.value; markDirty(); }
-  });
-  $("mods").addEventListener("change",function(e){ if(e.target.matches("[data-svc]")){ S.draft.music.service=e.target.value; markDirty(); } });
-  $("themes").addEventListener("click",function(e){ var b=e.target.closest("[data-t]"); if(!b) return; S.draft.theme.preset=b.dataset.t; S.draft.theme.accent=""; renderPage(); markDirty(); });
-  $("accent").addEventListener("input",function(){ S.draft.theme.accent=this.value; $("accentReset").hidden=false; markDirty(); });
-  $("accentReset").addEventListener("click",function(){ S.draft.theme.accent=""; renderPage(); markDirty(); });
-  $("fonts").addEventListener("click",function(e){ var b=e.target.closest("[data-f]"); if(!b) return; S.draft.theme.font=b.dataset.f; renderPage(); markDirty(); });
-  $("bgs").addEventListener("click",function(e){
-    var b=e.target.closest("[data-b]"); if(!b) return; var v=b.dataset.b;
-    if(v==="trocar"||(v==="foto"&&!S.draft.bgVersion)){ $("bgFile").click(); return; }
-    S.draft.theme.bg=v; renderPage(); markDirty();
-  });
-  $("bgFile").addEventListener("change",function(){ if(this.files[0]) upload("fundo",this.files[0]); this.value=""; });
-  $("headline").addEventListener("input",function(){ S.draft.theme.headline=this.value; markDirty(); });
-  $("sub").addEventListener("input",function(){ S.draft.theme.sub=this.value; markDirty(); });
-
   // ================= Salvar =================
   var FIELDS=["name","city","car","since","bio","tags","instagram","whatsapp","waMsg","pixKey","pixName","pixCity","links","theme","modules","music"];
   function dirty(){ return FIELDS.some(function(k){ return JSON.stringify(S.draft[k])!==JSON.stringify(S.saved[k]); }); }
-  function markDirty(){ $("savebar").classList.toggle("show",!!S.saved&&dirty()); refreshPreview(); }
+  function markDirty(){ $("savebar").classList.toggle("show",!!S.saved&&dirty()); }
 
-  // ================= Prévia ao vivo =================
-  var pvT, pvSeq=0, pvFront=0, pvFrames=document.querySelectorAll("#pvScreen iframe");
-  function refreshPreview(now){
-    if(S.view!=="pagina"||$("pv").classList.contains("min")) return;
-    clearTimeout(pvT); pvT=setTimeout(loadPreview,now?0:280);
-  }
-  function loadPreview(){
-    var seq=++pvSeq, out={}; FIELDS.forEach(function(k){ out[k]=S.draft[k]; });
-    var slow=setTimeout(function(){ $("pvLoad").hidden=false; },500);
-    fetch("/api/previa",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(out),credentials:"same-origin"})
-      .then(function(r){ return r.ok?r.text():Promise.reject(); })
-      .then(function(html){
-        if(seq!==pvSeq) return;
-        // Duas janelas: carrega na escondida e troca, sem piscar e sem perder a rolagem
-        var cur=pvFrames[pvFront], nxt=pvFrames[1-pvFront], y=0;
-        try{ y=cur.contentWindow.scrollY||0; }catch(e){}
-        nxt.onload=function(){
-          if(seq!==pvSeq) return;
-          try{ nxt.contentWindow.scrollTo(0,y); }catch(e){}
-          nxt.style.visibility="visible"; cur.style.visibility="hidden"; pvFront=1-pvFront;
-          clearTimeout(slow); $("pvLoad").hidden=true;
-        };
-        nxt.srcdoc=html;
-      }).catch(function(){ clearTimeout(slow); $("pvLoad").hidden=true; });
-  }
-  $("pvSize").addEventListener("click",function(){ var big=$("pv").classList.toggle("big"); this.textContent=big?"Diminuir":"Ampliar"; });
-  $("pvHide").addEventListener("click",function(){
-    var min=$("pv").classList.toggle("min"); this.textContent=min?"Mostrar":"Esconder"; $("pvSize").hidden=min;
-    if(!min) refreshPreview(true);
-  });
-  function measureTop(){ document.documentElement.style.setProperty("--toph",document.querySelector(".top").offsetHeight+"px"); }
-  window.addEventListener("resize",measureTop);
-  $("discard").addEventListener("click",function(){ S.draft=clone(S.saved); renderProfileForm(); renderPage(); markDirty(); });
+  $("discard").addEventListener("click",function(){ S.draft=clone(S.saved); renderProfileForm(); markDirty(); });
   $("save").addEventListener("click",function(){
     if(S.draft.since && !/^(19|20)\d\d$/.test(S.draft.since)){ go("perfil"); toast("Coloque o ano com 4 números, tipo 2020."); return; }
     var out={}; FIELDS.forEach(function(k){ out[k]=S.draft[k]; });
@@ -969,13 +780,13 @@ details.howto ol b{color:var(--fg)}
 
   // ================= Navegação =================
   function go(v){
+    // A página se edita direto nela mesma
+    if(v==="pagina"){ location.href="/editar"; return; }
     if(!$("v-"+v)) v="inicio";
     S.view=v;
     document.querySelectorAll(".view[id^=v-]").forEach(function(el){ el.hidden=el.id!=="v-"+v; });
     document.querySelectorAll("nav.tabs button").forEach(function(b){ if(b.dataset.v===v) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
     history.replaceState(null,"","#"+v); window.scrollTo(0,0);
-    document.querySelector("main").classList.toggle("wide",v==="pagina");
-    if(v==="pagina"){ measureTop(); refreshPreview(true); }
     if(v==="musica") pollRequests();
   }
   document.querySelector("nav.tabs").addEventListener("click",function(e){ var b=e.target.closest("button"); if(b) go(b.dataset.v); });
