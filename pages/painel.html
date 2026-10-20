@@ -13,6 +13,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js" defer></script>
 <script src="/mapa.js" defer></script>
 <style>
 /* Painel do motorista: usado no celular, no carro parado, muitas vezes de madrugada. Escuro, alvos grandes. */
@@ -162,6 +165,24 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:18px;he
 .dh-drv.me .face{border-color:#3fa0ff}
 .dh-drv .nm{font:700 11px/1.15 Figtree,system-ui,sans-serif;color:#eef0fa;background:rgba(12,14,26,.86);border-radius:6px;padding:2px 6px;white-space:nowrap}
 .status-on{color:var(--ok)}
+
+/* Oferta de corrida (estilo apps de corrida) */
+.offer{position:fixed;inset:0;z-index:90;background:rgba(4,5,10,.55);display:flex;align-items:flex-end;justify-content:center}
+.offer-card{width:100%;max-width:520px;background:#10131c;border-radius:22px 22px 0 0;overflow:hidden;box-shadow:0 -20px 40px rgba(0,0,0,.6);animation:sheetup .25s ease-out}
+#offerMap{height:240px;background:#151a24}
+.offer-body{padding:16px 18px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+.offer-tag{font-size:13px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
+.offer-eta{font-family:var(--display);font-weight:900;font-size:40px;line-height:.95;text-transform:uppercase}
+.offer-who{display:flex;align-items:center;gap:10px;font-size:18px}
+.offer-who .ava{width:36px;height:36px;font-size:17px}
+.offer-row{display:flex;gap:12px;align-items:flex-start}
+.offer-row small{display:block;color:var(--muted);font-size:13px}
+.offer-row b{font-size:16px}
+.dotp{width:12px;height:12px;border-radius:50%;background:var(--accent);margin-top:6px;flex:none;box-shadow:0 0 0 4px rgba(255,179,71,.2)}
+.offer-note{margin:0;padding:10px 12px;border-radius:12px;background:var(--panel2);font-size:15px}
+.offer-timer{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.offer-timer i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:left;transition:transform 1s linear}
+.offer-accept{min-height:58px;font-size:20px}
 
 /* Folha (detalhes e formulários) */
 .dsheet{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-end;justify-content:center;background:rgba(4,5,10,.45)}
@@ -558,6 +579,21 @@ details.howto ol b{color:var(--fg)}
   </div>
 </div>
 <input type="file" id="placeFile" accept="image/*" hidden>
+<div class="offer" id="offer" hidden role="dialog" aria-modal="true" aria-labelledby="ofName">
+  <div class="offer-card">
+    <div id="offerMap"></div>
+    <div class="offer-body">
+      <div class="offer-tag">Corrida particular · Driver Hub</div>
+      <div class="offer-eta" id="ofEta">Calculando rota…</div>
+      <div class="offer-who"><span class="ava" id="ofAva"></span><b id="ofName"></b></div>
+      <div class="offer-row"><span class="dotp"></span><div><small>Embarque</small><b id="ofAddr">Buscando endereço…</b></div></div>
+      <p class="offer-note" id="ofNote" hidden></p>
+      <div class="offer-timer"><i id="ofBar"></i></div>
+      <button class="btn primary block offer-accept" type="button" id="ofAccept">Aceitar</button>
+      <button class="btn ghost block" type="button" id="ofReject">Recusar</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -856,7 +892,7 @@ details.howto ol b{color:var(--fg)}
       if(!x.ok) return; var list=x.j.chamados||[];
       var novos=list.filter(function(c){ return c.status==="novo"; });
       if(seenCalls){ var chegou=novos.filter(function(c){ return seenCalls.indexOf(c.id)<0; });
-        if(chegou.length){ toast("Novo chamado de "+chegou[0].name+"!"); try{ navigator.vibrate&&navigator.vibrate([300,150,300]); }catch(e){} if(S.view!=="inicio") go("inicio"); } }
+        if(chegou.length){ showOffer(chegou[0]); } }
       seenCalls=list.map(function(c){ return c.id; });
       var vis=list.filter(function(c){ return c.status==="novo"||c.status==="aceito"; });
       $("callsBox").hidden=!vis.length;
@@ -873,9 +909,59 @@ details.howto ol b{color:var(--fg)}
       }).join("");
     });
   }
+  // ----- Cartão de oferta -----
+  var offerMap=null, offerLayer=null, offerTimer=null, offerCall=null;
+  function beep(){
+    try{ var a=new (window.AudioContext||window.webkitAudioContext)(); [0,0.25,0.5].forEach(function(t){ var o=a.createOscillator(), g=a.createGain(); o.frequency.value=880; o.connect(g); g.connect(a.destination);
+      g.gain.setValueAtTime(0.25,a.currentTime+t); g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+t+0.2); o.start(a.currentTime+t); o.stop(a.currentTime+t+0.22); }); }catch(e){}
+    try{ navigator.vibrate&&navigator.vibrate([400,150,400,150,400]); }catch(e){}
+  }
+  function myPos(){
+    return new Promise(function(ok){
+      if(ON.pos) return ok(ON.pos);
+      if(!navigator.geolocation) return ok(null);
+      navigator.geolocation.getCurrentPosition(function(p){ ok({lat:p.coords.latitude,lng:p.coords.longitude}); },function(){ ok(null); },{enableHighAccuracy:true,timeout:6000,maximumAge:60000});
+    });
+  }
+  function showOffer(c){
+    offerCall=c; beep();
+    $("ofName").textContent=c.name; $("ofAva").textContent=(c.name||"?").charAt(0).toUpperCase();
+    $("ofNote").hidden=!c.note; $("ofNote").textContent=c.note?"“"+c.note+"”":"";
+    $("ofEta").textContent=c.lat!=null?"Calculando rota…":"Sem localização"; $("ofAddr").textContent=c.lat!=null?"Buscando endereço…":(c.note||"Combine pelo WhatsApp");
+    $("offer").hidden=false;
+    if(!offerMap){ offerMap=DHMap.create($("offerMap"),S.me.city,{zoom:15}); offerLayer=L.layerGroup().addTo(offerMap); }
+    setTimeout(function(){ offerMap.invalidateSize(); },60);
+    offerLayer.clearLayers();
+    if(c.lat!=null){
+      var pick={lat:c.lat,lng:c.lng}; DHMap.pinMarker(pick.lat,pick.lng).addTo(offerLayer); offerMap.setView([pick.lat,pick.lng],15);
+      DHMap.addr(pick).then(function(a){ if(offerCall===c) $("ofAddr").textContent=a||"Ponto marcado no mapa"; });
+      myPos().then(function(me){
+        if(!me||offerCall!==c){ $("ofEta").textContent="Passageiro no mapa"; return; }
+        DHMap.carMarker(me.lat,me.lng).addTo(offerLayer);
+        DHMap.route(me,pick).then(function(r){ if(offerCall!==c) return;
+          L.polyline(r.coords,{color:"#ffb347",weight:5,opacity:.95}).addTo(offerLayer);
+          offerMap.fitBounds(L.latLngBounds(r.coords),{padding:[30,30]});
+          $("ofEta").textContent=r.min+" min · "+r.km.toFixed(1).replace(".",",")+" km";
+        });
+      });
+    }
+    var left=30; $("ofBar").style.transform="scaleX(1)"; clearInterval(offerTimer);
+    offerTimer=setInterval(function(){ left--; $("ofBar").style.transform="scaleX("+(left/30)+")"; if(left<=0){ closeOffer(); } },1000);
+  }
+  function closeOffer(){ clearInterval(offerTimer); $("offer").hidden=true; offerCall=null; pollCalls(); }
+  $("ofAccept").addEventListener("click",function(){
+    var c=offerCall; if(!c) return;
+    call("POST","/api/chamados/"+c.id+"/aceitar").then(function(){
+      // O passageiro acompanha o carro: liga o modo online se estiver desligado
+      if(!ON.on) startOnline(true);
+      toast("Aceito! Avise "+c.name+" no WhatsApp."); closeOffer(); go("inicio");
+    });
+  });
+  $("ofReject").addEventListener("click",function(){ var c=offerCall; if(c) call("POST","/api/chamados/"+c.id+"/recusar"); closeOffer(); });
+
   $("callList").addEventListener("click",function(e){
     var b=e.target.closest("[data-ca]"); if(!b) return; var id=b.closest("[data-call]").dataset.call;
-    b.disabled=true; call("POST","/api/chamados/"+id+"/"+b.dataset.ca).then(pollCalls);
+    b.disabled=true; if(b.dataset.ca==="aceitar"&&!ON.on) startOnline(true); call("POST","/api/chamados/"+id+"/"+b.dataset.ca).then(pollCalls);
   });
 
   function pollRequests(){

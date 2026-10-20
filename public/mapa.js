@@ -85,14 +85,54 @@
   ].join("\n");
   var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
 
+  // Paleta noturna dos apps de corrida: fundo azul-grafite, avenidas destacadas, nomes discretos
+  function recolor(m) {
+    var C = { bg: "#151a24", water: "#0d1a29", park: "#17211d", building: "#1c2230", minor: "#2d3446", mid: "#3b4459", major: "#566078", text: "#9aa3b8" };
+    (m.getStyle().layers || []).forEach(function (l) {
+      var id = l.id.toLowerCase();
+      try {
+        if (l.type === "background") m.setPaintProperty(l.id, "background-color", C.bg);
+        else if (l.type === "fill") {
+          if (/water|ocean|lake|river/.test(id)) m.setPaintProperty(l.id, "fill-color", C.water);
+          else if (/park|wood|grass|landcover|forest|green/.test(id)) m.setPaintProperty(l.id, "fill-color", C.park);
+          else if (/building/.test(id)) m.setPaintProperty(l.id, "fill-color", C.building);
+          else if (/landuse|residential|aeroway|pitch|school|hospital/.test(id)) m.setPaintProperty(l.id, "fill-color", C.bg);
+        } else if (l.type === "line") {
+          if (/water|river|stream|canal/.test(id)) m.setPaintProperty(l.id, "line-color", C.water);
+          else if (/boundary|admin/.test(id)) m.setPaintProperty(l.id, "line-color", "#2a3142");
+          else if (/motorway|trunk|highway_major|major/.test(id)) m.setPaintProperty(l.id, "line-color", C.major);
+          else if (/primary|secondary/.test(id)) m.setPaintProperty(l.id, "line-color", C.mid);
+          else if (/road|street|highway|tertiary|minor|service|path|track|transportation|bridge|tunnel/.test(id)) m.setPaintProperty(l.id, "line-color", C.minor);
+        } else if (l.type === "symbol" && l.layout && l.layout["text-field"]) {
+          m.setPaintProperty(l.id, "text-color", /place|city|town|village|suburb/.test(id) ? "#c3c9d8" : C.text);
+          m.setPaintProperty(l.id, "text-halo-color", C.bg);
+        }
+      } catch (e) {}
+    });
+  }
+
   function create(el, city, opts) {
     opts = opts || {};
     var map = L.map(el, { zoomControl: false, attributionControl: true, tap: true }).setView([city.lat, city.lng], opts.zoom || 14);
-    // Mapa padrão do OpenStreetMap (grátis, sem chave), escurecido por filtro pra combinar com o app
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19, className: "dh-tiles",
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-    }).addTo(map);
+    // Mapa vetorial escuro e limpo, no estilo dos apps de corrida (OpenFreeMap: grátis, sem chave).
+    // Sem WebGL, cai no OpenStreetMap comum escurecido.
+    var attr = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
+    var vetor = false;
+    try {
+      if (window.maplibregl && L.maplibreGL && maplibregl.supported !== false) {
+        var gl = L.maplibreGL({ style: "https://tiles.openfreemap.org/styles/dark", attribution: attr, preserveDrawingBuffer: !!opts.capture || /[?&]captura=1/.test(location.search) }).addTo(map);
+        var mm = gl.getMaplibreMap && gl.getMaplibreMap();
+        if (mm) {
+          if (mm.isStyleLoaded()) recolor(mm); else mm.once("style.load", function () { recolor(mm); });
+          // Se não desenhar em 8 s, usa o mapa comum escurecido
+          var ok = false; mm.once("load", function () { ok = true; });
+          setTimeout(function () { if (!ok && !mm.loaded()) { map.removeLayer(gl); raster(); } }, 8000);
+        }
+        vetor = true;
+      }
+    } catch (e) { vetor = false; }
+    function raster() { L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, className: "dh-tiles", attribution: attr }).addTo(map); }
+    if (!vetor) raster();
     // No celular o zoom é com dois dedos; botões só em tela grande
     if (window.matchMedia("(min-width: 760px)").matches) L.control.zoom({ position: "bottomright" }).addTo(map);
     return map;
@@ -149,5 +189,30 @@
     return h;
   }
 
-  window.DHMap = { create: create, marker: marker, meMarker: meMarker, card: card, icon: icon, colorOf: colorOf, money: money, ago: ago, distKm: distKm, km: km, directions: directions, FUEL_LABEL: FUEL_LABEL, esc: esc };
+  // Rota de carro (OSRM público): {coords:[[lat,lng]], min, km}
+  function route(a, b) {
+    return fetch("https://router.project-osrm.org/route/v1/driving/" + a.lng + "," + a.lat + ";" + b.lng + "," + b.lat + "?overview=full&geometries=geojson")
+      .then(function (r) { return r.json(); }).then(function (j) {
+        var r0 = j.routes && j.routes[0]; if (!r0) throw 0;
+        return { coords: r0.geometry.coordinates.map(function (c) { return [c[1], c[0]]; }), min: Math.max(1, Math.round(r0.duration / 60)), km: r0.distance / 1000 };
+      }).catch(function () { var d = distKm(a, b); return { coords: [[a.lat, a.lng], [b.lat, b.lng]], min: Math.max(1, Math.round(d / 0.45)), km: d }; });
+  }
+  // Endereço aproximado de um ponto (Nominatim)
+  function addr(p) {
+    return fetch("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=pt-BR&lat=" + p.lat + "&lon=" + p.lng)
+      .then(function (r) { return r.json(); }).then(function (j) {
+        var a = j.address || {}; var rua = a.road || a.pedestrian || a.neighbourhood || "";
+        return [rua + (a.house_number ? ", " + a.house_number : ""), a.suburb || a.neighbourhood || ""].filter(Boolean).join(" · ") || (j.display_name || "").split(",").slice(0, 2).join(",");
+      }).catch(function () { return ""; });
+  }
+  function carMarker(lat, lng) {
+    return L.marker([lat, lng], { zIndexOffset: 900, icon: L.divIcon({ className: "", iconSize: [0, 0],
+      html: '<div style="transform:translate(-50%,-50%);position:absolute;width:38px;height:38px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 4px 12px rgba(0,0,0,.6)"><svg viewBox="0 0 24 24" width="22" height="22" fill="#0c0e1a"><path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11v6a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H8v1a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1zM7.5 14a1.2 1.2 0 1 0 0-.01M16.5 14a1.2 1.2 0 1 0 0-.01M7 10h10l-1-3H8z"/></svg></div>' }) });
+  }
+  function pinMarker(lat, lng, color) {
+    return L.marker([lat, lng], { zIndexOffset: 800, icon: L.divIcon({ className: "", iconSize: [0, 0],
+      html: '<div style="transform:translate(-50%,-100%);position:absolute"><svg viewBox="0 0 24 24" width="36" height="36"><path d="M12 22s-7-6.4-7-11.5a7 7 0 0 1 14 0C19 15.6 12 22 12 22z" fill="' + (color || "#ffb347") + '" stroke="#0c0e1a" stroke-width="1.5"/><circle cx="12" cy="10.5" r="2.6" fill="#0c0e1a"/></svg></div>' }) });
+  }
+
+  window.DHMap = { route: route, addr: addr, carMarker: carMarker, pinMarker: pinMarker, create: create, marker: marker, meMarker: meMarker, card: card, icon: icon, colorOf: colorOf, money: money, ago: ago, distKm: distKm, km: km, directions: directions, FUEL_LABEL: FUEL_LABEL, esc: esc };
 })();

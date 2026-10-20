@@ -219,13 +219,22 @@ async function publicApi(req, env, url, username, action) {
     if (!name) return json({ error: "Coloque seu nome." }, 400);
     if (phone.length < 10) return json({ error: "Coloque seu WhatsApp com DDD." }, 400);
     const lat = Number(b.lat), lng = Number(b.lng), ok = Number.isFinite(lat) && Number.isFinite(lng);
-    const r = await env.DB.prepare(`INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at) VALUES(?,?,?,?,?,?,?)`)
-      .bind(user.id, name, phone, note, ok ? lat : null, ok ? lng : null, Date.now()).run();
-    return json({ ok: true, id: r.meta.last_row_id });
+    const token = crypto.randomUUID();
+    const r = await env.DB.prepare(`INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at,token) VALUES(?,?,?,?,?,?,?,?)`)
+      .bind(user.id, name, phone, note, ok ? lat : null, ok ? lng : null, Date.now(), token).run();
+    return json({ ok: true, id: r.meta.last_row_id, token });
   }
   if (action === "chamado" && req.method === "GET") {
-    const row = await env.DB.prepare(`SELECT status FROM ride_calls WHERE id=? AND driver_id=?`).bind(Number(url.searchParams.get("id")), user.id).first();
-    return json({ status: row ? row.status : "sumiu" });
+    const row = await env.DB.prepare(`SELECT status,lat,lng,token FROM ride_calls WHERE id=? AND driver_id=?`).bind(Number(url.searchParams.get("id")), user.id).first();
+    if (!row) return json({ status: "sumiu" });
+    const out = { status: row.status, pickup: row.lat != null ? { lat: row.lat, lng: row.lng } : null };
+    // Posição do motorista só pra quem fez o chamado, e só depois do aceite
+    if (row.status === "aceito" && row.token && row.token === url.searchParams.get("t")) {
+      const loc = await env.DB.prepare(`SELECT lat,lng,at FROM driver_locations WHERE user_id=? AND at>?`).bind(user.id, Date.now() - 10 * 60 * 1000).first();
+      if (loc) out.driver = { lat: loc.lat, lng: loc.lng, at: loc.at };
+      out.car = p.car || "";
+    }
+    return json(out);
   }
 
   if (action === "codigo" && req.method === "POST") {

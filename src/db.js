@@ -32,6 +32,10 @@ export function ensureDb(env) {
 
 async function setup(env) {
   await env.DB.batch(SCHEMA.map((s) => env.DB.prepare(s)));
+  // Colunas novas em tabelas que já existem
+  for (const sql of [`ALTER TABLE ride_calls ADD COLUMN token TEXT`]) {
+    try { await env.DB.prepare(sql).run(); } catch {}
+  }
   await seedOwner(env);
 }
 

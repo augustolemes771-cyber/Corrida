@@ -10,6 +10,12 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" id="displayFont" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js" defer></script>
+<script src="/mapa.js" defer></script>
 <style>
 /* Perfil público do motorista. Escuro por padrão: é lido no banco de trás, de madrugada. */
 :root{
@@ -196,6 +202,8 @@ body.has-nav{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 .callbtn small{font-size:13px;color:var(--muted)}
 .callstat{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
 .callstat b{font-size:20px}
+#trackMap{width:100%;height:260px;border-radius:14px;overflow:hidden;background:#151a24}
+.track-eta{font-family:var(--display);font-weight:900;font-size:36px;line-height:.95;text-transform:uppercase}
 
 /* Cadeado da música */
 .lockbox{display:flex;flex-direction:column;gap:12px;padding:16px}
@@ -1145,7 +1153,7 @@ body.editing .tabs{position:static}
   function openCall(){
     var saved=null; try{ saved=JSON.parse(localStorage.getItem(CALL_KEY)||"null"); }catch(e){}
     $("sheetTitle").textContent="Chamar "+P.name;
-    if(saved&&Date.now()-saved.at<3*3600*1000){ showStatus(saved.id); $("sheet").hidden=false; return; }
+    if(saved&&Date.now()-saved.at<3*3600*1000){ showStatus(saved.id,saved.t); $("sheet").hidden=false; return; }
     var nome="",fone=""; try{ nome=localStorage.getItem("meuNome")||""; fone=localStorage.getItem("meuFone")||""; }catch(e){}
     $("sheetBody").innerHTML='<form id="callForm" class="callstat" novalidate style="align-items:stretch">'+
       '<label class="q"><span>Seu nome</span><input id="cName" maxlength="40" autocomplete="given-name" value="'+esc(nome)+'"></label>'+
@@ -1163,8 +1171,8 @@ body.editing .tabs{position:static}
       $("cSend").disabled=true; setMsg("cMsg","Enviando…");
       var send=function(){ post(api("chamar"),d).then(function(x){
         if(!x.ok){ $("cSend").disabled=false; setMsg("cMsg",x.j.error||"Não deu pra chamar.","err"); return; }
-        try{ localStorage.setItem(CALL_KEY,JSON.stringify({id:x.j.id,at:Date.now()})); }catch(_){}
-        showStatus(x.j.id);
+        try{ localStorage.setItem(CALL_KEY,JSON.stringify({id:x.j.id,t:x.j.token,at:Date.now()})); }catch(_){}
+        showStatus(x.j.id,x.j.token);
       }).catch(function(){ $("cSend").disabled=false; setMsg("cMsg","Sem conexão. Tente de novo.","err"); }); };
       if($("cLoc").checked&&navigator.geolocation){
         setMsg("cMsg","Pegando sua localização…");
@@ -1172,7 +1180,33 @@ body.editing .tabs{position:static}
       } else send();
     });
   }
-  function showStatus(id){
+  var tMap=null, tLayer=null, tRouteAt=0, tLast="";
+  function drawTracking(j){
+    // Depois do aceite: carro ao vivo, rota até o passageiro e tempo de chegada
+    if(!$("trackMap")){
+      $("sheetBody").innerHTML='<div class="callstat" style="align-items:stretch"><span class="track-eta" id="tEta">'+esc(P.name)+' aceitou</span>'+
+        '<p class="hint" style="font-size:16px;margin:0" id="tSub">'+esc((j.car?j.car+" · ":"")+"Esperando a posição do motorista…")+'</p><div id="trackMap"></div>'+
+        (P.whatsapp?'<a class="primary" style="text-align:center;text-decoration:none" href="https://wa.me/'+P.whatsapp+'" target="_blank" rel="noopener">Falar com '+esc(P.name)+' no WhatsApp</a>':'')+'</div>';
+      tMap=null;
+    }
+    if(typeof L==="undefined"||typeof DHMap==="undefined") return;
+    if(!tMap){ tMap=DHMap.create($("trackMap"),j.pickup||j.driver||{lat:-17.7441,lng:-48.625},{zoom:15}); tLayer=L.layerGroup().addTo(tMap); tRouteAt=0; setTimeout(function(){ tMap.invalidateSize(); },60); }
+    var key=JSON.stringify([j.driver&&[j.driver.lat.toFixed(4),j.driver.lng.toFixed(4)],j.pickup]);
+    if(key===tLast&&Date.now()-tRouteAt<30000) return; tLast=key;
+    tLayer.clearLayers();
+    if(j.pickup) DHMap.pinMarker(j.pickup.lat,j.pickup.lng).addTo(tLayer);
+    if(j.driver) DHMap.carMarker(j.driver.lat,j.driver.lng).addTo(tLayer);
+    if(j.driver&&j.pickup){
+      tRouteAt=Date.now();
+      DHMap.route(j.driver,j.pickup).then(function(r){
+        L.polyline(r.coords,{color:"#ffb347",weight:5,opacity:.95}).addTo(tLayer);
+        tMap.fitBounds(L.latLngBounds(r.coords),{padding:[30,30],maxZoom:17});
+        $("tEta").textContent=r.km<0.08?"Chegou!":"Chega em "+r.min+" min";
+        $("tSub").textContent=(j.car?j.car+" · ":"")+r.km.toFixed(1).replace(".",",")+" km de você";
+      });
+    } else if(j.driver){ tMap.setView([j.driver.lat,j.driver.lng],15); $("tSub").textContent=(j.car?j.car+" · ":"")+"Você não mandou sua localização, combine o ponto no WhatsApp."; }
+  }
+  function showStatus(id,tok){
     var T={novo:["Chamado enviado","Esperando "+P.name+" responder. Pode deixar essa tela aberta."],
       aceito:["Aceito! 🚗",P.name+" vai te chamar no WhatsApp."],recusado:["Agora não deu",P.name+" não pode agora. Tente outro motorista na aba Motoristas."],
       concluido:["Corrida concluída","Valeu! Bora de novo quando precisar."],sumiu:["Chamado expirou","Chame de novo se ainda precisar."]};
@@ -1182,10 +1216,10 @@ body.editing .tabs{position:static}
         (P.whatsapp?'<a class="primary" style="text-align:center;text-decoration:none" href="https://wa.me/'+P.whatsapp+'" target="_blank" rel="noopener">Abrir WhatsApp do motorista</a>':'')+
         (fim?'<button type="button" class="ghostbtn" id="cNew">Fazer outro chamado</button>':'')+'</div>';
       var n=$("cNew"); if(n) n.addEventListener("click",function(){ try{ localStorage.removeItem(CALL_KEY); }catch(_){} clearInterval(callTimer); $("callSub").textContent="Pede uma corrida direto pra ele"; openCall(); });
-      if(fim){ clearInterval(callTimer); callTimer=null; }
+      if(fim&&st!=="aceito"){ clearInterval(callTimer); callTimer=null; }
     }
     draw("novo");
-    function check(){ fetch(api("chamado")+"?id="+id).then(function(r){ return r.json(); }).then(function(j){ draw(j.status); }).catch(function(){}); }
+    function check(){ fetch(api("chamado")+"?id="+id+"&t="+encodeURIComponent(tok||"")).then(function(r){ return r.json(); }).then(function(j){ if(j.status==="aceito") drawTracking(j); else draw(j.status); }).catch(function(){}); }
     check(); clearInterval(callTimer); callTimer=setInterval(check,6000);
   }
 
