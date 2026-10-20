@@ -1,0 +1,13 @@
+{
+  "name": "driver-hub-android",
+  "private": true,
+  "description": "App Android do Driver Hub: abre o painel do motorista e mantém a localização em segundo plano.",
+  "dependencies": {
+    "@capacitor-community/background-geolocation": "1.2.26",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

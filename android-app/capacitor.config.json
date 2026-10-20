@@ -1,0 +1,13 @@
+{
+  "appId": "com.driverhub.motorista",
+  "appName": "Driver Hub",
+  "webDir": "www",
+  "server": {
+    "url": "https://corrida.augusto7.workers.dev/painel",
+    "allowNavigation": ["corrida.augusto7.workers.dev"],
+    "errorPath": "offline.html"
+  },
+  "android": {
+    "backgroundColor": "#0c0e1a"
+  }
+}

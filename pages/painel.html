@@ -154,6 +154,15 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:18px;he
 .pickbar{position:absolute;left:12px;right:12px;bottom:16px;z-index:500;display:grid;grid-template-columns:1fr 1.6fr;gap:8px}
 .pickhint{position:absolute;left:50%;top:120px;transform:translateX(-50%);z-index:500;background:var(--fg);color:var(--bg);font-weight:700;border-radius:12px;padding:8px 14px;font-size:14px;white-space:nowrap}
 
+/* Motoristas online no mapa */
+.dh-drv{display:flex;flex-direction:column;align-items:center;gap:3px;transform:translate(-50%,-100%);position:absolute;left:0;top:0;cursor:pointer}
+.dh-drv .face{width:40px;height:40px;border-radius:50%;border:3px solid #b18cff;background:#1b1f35;display:grid;place-items:center;overflow:hidden;
+  font:900 18px/1 "Big Shoulders Display",sans-serif;color:#b18cff;box-shadow:0 4px 10px -4px rgba(0,0,0,.8)}
+.dh-drv .face img{width:100%;height:100%;object-fit:cover}
+.dh-drv.me .face{border-color:#3fa0ff}
+.dh-drv .nm{font:700 11px/1.15 Figtree,system-ui,sans-serif;color:#eef0fa;background:rgba(12,14,26,.86);border-radius:6px;padding:2px 6px;white-space:nowrap}
+.status-on{color:var(--ok)}
+
 /* Folha (detalhes e formulários) */
 .dsheet{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-end;justify-content:center;background:rgba(4,5,10,.45)}
 .dsheet-box{width:100%;max-width:560px;max-height:84vh;display:flex;flex-direction:column;background:var(--panel);border:1.5px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;
@@ -335,6 +344,13 @@ details.howto ol b{color:var(--fg)}
           <button class="btn" type="button" id="codeNew">Trocar código</button>
           <button class="btn" type="button" id="codeMine">Escolher código</button>
         </div>
+      </div>
+
+      <h2>Ficar online</h2>
+      <div class="block">
+        <div class="rowsw"><span id="onlineLabel">Offline<small id="onlineHint"></small></span>
+          <button class="switch" type="button" role="switch" id="onlineSw" aria-checked="false" aria-label="Ficar online"></button></div>
+        <a class="btn block" id="apkBtn" href="https://github.com/augustolemes771-cyber/Corrida/releases/latest/download/driver-hub.apk" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Baixar o app Android</a>
       </div>
 
       <h2 id="h-inicio">Mostra pro passageiro</h2>
@@ -607,7 +623,8 @@ details.howto ol b{color:var(--fg)}
       if(!x.ok){ $("auth").hidden=false; $("app").hidden=true; if(location.pathname==="/cadastro") authMode(true); return; }
       S.me=x.j; S.tags=x.j.tags; S.saved=x.j.profile; S.draft=clone(S.saved);
       $("auth").hidden=true; $("app").hidden=false;
-      renderAll();
+      renderAll(); renderOnline();
+      try{ if(localStorage.getItem("online")==="1") startOnline(true); }catch(e){}
       go(S.fresh?"perfil":(location.hash.slice(1).replace("pagina","")||"inicio"));
       if(S.fresh) toast("Conta criada! Complete seu perfil.");
       pollRequests(); setInterval(pollRequests,15000);
@@ -979,6 +996,54 @@ details.howto ol b{color:var(--fg)}
     saveCode({code:c},"Código salvo");
   });
 
+  // ================= Ficar online =================
+  // No app Android usa a localização em segundo plano (com notificação fixa). No navegador, só com a página aberta.
+  var NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+  var BG=NATIVE&&Capacitor.registerPlugin?Capacitor.registerPlugin("BackgroundGeolocation"):null;
+  var ON={on:false,watch:null,last:0,pos:null};
+  function sendLoc(p){
+    var now=Date.now();
+    if(ON.pos&&now-ON.last<25000&&DHMap.distKm(ON.pos,p)<0.05) return;
+    ON.last=now; ON.pos=p;
+    fetch("/api/localizacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p),credentials:"same-origin",keepalive:true}).catch(function(){});
+  }
+  function startOnline(quiet){
+    if(ON.on) return;
+    if(NATIVE&&BG){
+      BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:30},
+        function(loc,err){
+          if(err){
+            if(err.code==="NOT_AUTHORIZED"&&confirm("O Driver Hub precisa da sua localização pra ficar online. Abrir as configurações?")) BG.openSettings();
+            stopOnline(); return;
+          }
+          if(loc) sendLoc({lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed});
+        }).then(function(id){ ON.watch=id; });
+    } else {
+      if(!navigator.geolocation){ if(!quiet) toast("Seu navegador não deixa pegar a localização."); return; }
+      ON.watch=navigator.geolocation.watchPosition(function(pos){ sendLoc({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,speed:pos.coords.speed}); },
+        function(e){ if(e.code===1){ toast("Libere a localização pro Driver Hub nas configurações do navegador."); stopOnline(); } },
+        {enableHighAccuracy:true,maximumAge:15000,timeout:30000});
+    }
+    ON.on=true; try{ localStorage.setItem("online","1"); }catch(e){}
+    renderOnline(); if(!quiet) toast("Você está online");
+  }
+  function stopOnline(){
+    if(NATIVE&&BG&&ON.watch) BG.removeWatcher({id:ON.watch}); else if(ON.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(ON.watch);
+    var was=ON.on; ON.watch=null; ON.on=false; ON.pos=null; try{ localStorage.removeItem("online"); }catch(e){}
+    if(was) call("POST","/api/localizacao",{online:false});
+    renderOnline();
+  }
+  function renderOnline(){
+    $("onlineSw").setAttribute("aria-checked",String(ON.on));
+    $("onlineLabel").firstChild.textContent=ON.on?"Online":"Offline";
+    $("onlineLabel").classList.toggle("status-on",ON.on);
+    $("onlineHint").textContent=ON.on
+      ?(NATIVE?"Continua mandando com a tela apagada e a Uber aberta. A notificação “Driver Hub online” fica fixa enquanto estiver ligado.":"No navegador, só manda enquanto o Driver Hub estiver aberto na tela.")
+      :"Os motoristas do Driver Hub veem onde você está no mapa do Pit Stop. Passageiros não veem.";
+    $("apkBtn").hidden=NATIVE||!/Android/i.test(navigator.userAgent);
+  }
+  $("onlineSw").addEventListener("click",function(){ if(ON.on) stopOnline(); else startOnline(); });
+
   // ================= Pit Stop =================
   var PS={loaded:false,list:[],cats:{lugar:{},parceiro:{}},admin:false,city:null,loading:null};
   var FUELS=["gasolina","etanol","diesel","gnv"], FUEL="gasolina", here=null;
@@ -989,7 +1054,7 @@ details.howto ol b{color:var(--fg)}
     PS.loading=call("GET","/api/mapa").then(function(x){
       PS.loading=null;
       if(!x.ok){ toast(x.j.error||"Não deu pra carregar o mapa."); return; }
-      PS.list=x.j.lugares||[]; PS.cats=x.j.categorias||PS.cats; PS.admin=!!x.j.admin; PS.city=x.j.city; PS.loaded=true;
+      PS.list=x.j.lugares||[]; PS.drivers=x.j.motoristas||[]; PS.cats=x.j.categorias||PS.cats; PS.admin=!!x.j.admin; PS.city=x.j.city; PS.loaded=true;
       refreshPS();
     });
     return PS.loading;
@@ -1032,7 +1097,8 @@ details.howto ol b{color:var(--fg)}
     {id:"servicos",label:"Outros serviços",c:"#6cb2ff",test:function(p){ return p.kind==="parceiro"&&["oficina","lavajato","estetica"].indexOf(p.category)<0; }},
     {id:"lugares",label:"Lugares",c:"#ffb347",test:function(p){ return p.kind==="lugar"&&p.category!=="movimento"&&p.category!=="apoio"; }},
     {id:"movimento",label:"Movimento agora",c:"#ff6b86",test:function(p){ return p.kind==="lugar"&&p.category==="movimento"; }},
-    {id:"apoio",label:"Ponto de apoio",c:"#3fd6ea",test:function(p){ return p.kind==="lugar"&&p.category==="apoio"; }}
+    {id:"apoio",label:"Ponto de apoio",c:"#3fd6ea",test:function(p){ return p.kind==="lugar"&&p.category==="apoio"; }},
+    {id:"motoristas",label:"Motoristas online",c:"#b18cff",test:function(){ return false; }}
   ];
   var hidden={}; try{ hidden=JSON.parse(localStorage.getItem("camadas")||"{}"); }catch(e){}
   var dmap=null, dlayer=null, meDot=null, picking=null;
@@ -1052,13 +1118,26 @@ details.howto ol b{color:var(--fg)}
     }
     setTimeout(function(){ dmap.invalidateSize(); },60);
     loadPS().then(function(){ drawMap(); if(focus){ dmap.setView([focus.lat,focus.lng],17); openPlace(focus); } });
+    if(!mapTimer) mapTimer=setInterval(function(){ if(S.view==="mapa"&&!document.hidden&&!picking) loadPS(true); },60000);
   }
+  var mapTimer=null;
   function drawMap(){
     if(!dmap) return; dlayer.clearLayers();
     var best=bestPosto();
     PS.list.filter(visible).forEach(function(p){
       DHMap.marker(p,{fuel:FUEL,best:best&&best.id}).on("click",function(e){ L.DomEvent.stopPropagation(e); if(!picking) openPlace(p); }).addTo(dlayer);
     });
+    if(!hidden.motoristas) (PS.drivers||[]).forEach(function(d){
+      var face=d.avatar?'<img src="'+DHMap.esc(d.avatar)+'" alt="">':DHMap.esc((d.name||"?").charAt(0).toUpperCase());
+      var icon=L.divIcon({className:"",iconSize:[0,0],html:'<div class="dh-drv'+(d.me?" me":"")+'"><span class="face">'+face+'</span><span class="nm">'+(d.me?"Você":DHMap.esc(d.name))+'</span></div>'});
+      L.marker([d.lat,d.lng],{icon:icon,zIndexOffset:500,title:d.name}).on("click",function(e){ L.DomEvent.stopPropagation(e); if(!picking) openDriver(d); }).addTo(dlayer);
+    });
+  }
+  function openDriver(d){
+    current=null;
+    var E=DHMap.esc, h='<div class="pc-head"><span class="pc-ico" style="background:#b18cff">'+DHMap.icon("outro",20)+'</span><div class="pc-t"><b>'+E(d.me?"Você":d.name)+'</b><small>'+E(d.car||"@"+d.username)+' · visto '+DHMap.ago(d.at)+(here?" · "+DHMap.km(DHMap.distKm(here,d)):"")+'</small></div></div>'+
+      '<div class="pc-acts">'+(d.whatsapp&&!d.me?'<a class="pc-btn wa" href="https://wa.me/'+E(d.whatsapp)+'" target="_blank" rel="noopener">WhatsApp</a>':'')+'<a class="pc-btn" href="/'+E(d.username)+'#perfil" target="_blank" rel="noopener">Ver página</a></div>';
+    openSheet("Motorista",h);
   }
   $("locBtn").addEventListener("click",function(){ locate(function(){ if(meDot) meDot.remove(); meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); }); });
   function startPick(state){

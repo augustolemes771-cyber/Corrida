@@ -401,9 +401,38 @@ async function driverApi(req, env, url, p, me, secure) {
     return json({ ok: true, rideCode: rc });
   }
 
+  // ---- Localização (modo online). Só motoristas e o dono veem.
+  if (p === "/api/localizacao" && m === "POST") {
+    const b = await body(req);
+    const now = Date.now();
+    if (b.online === false) {
+      await env.DB.prepare(`UPDATE driver_locations SET online=0 WHERE user_id=?`).bind(me.id).run();
+      return json({ ok: true });
+    }
+    const lat = Number(b.lat), lng = Number(b.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return json({ error: "Localização inválida." }, 400);
+    if (tooMany("loc" + me.id, 40, 60 * 1000)) return json({ ok: true, ignorado: true });
+    const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+    await env.DB.prepare(
+      `INSERT INTO driver_locations(user_id,lat,lng,acc,speed,at,online) VALUES(?,?,?,?,?,?,1)
+       ON CONFLICT(user_id) DO UPDATE SET lat=excluded.lat,lng=excluded.lng,acc=excluded.acc,speed=excluded.speed,at=excluded.at,online=1`
+    ).bind(me.id, lat, lng, num(b.acc), num(b.speed), now).run();
+    return json({ ok: true });
+  }
+
   // ---- Mapa, lugares, parceiros e postos
   if (p === "/api/mapa" && m === "GET") {
-    return json({ lugares: await listPlaces(env, ["lugar", "parceiro", "posto"], me), city: cityOf(env), categorias: { lugar: LUGAR, parceiro: PARCEIRO }, fuels: FUELS, admin: me.role === "admin" });
+    // Motoristas online: atualizaram nos últimos 15 minutos
+    const { results: online } = await env.DB.prepare(
+      `SELECT l.user_id,l.lat,l.lng,l.at,u.username,p.data FROM driver_locations l JOIN users u ON u.id=l.user_id LEFT JOIN profiles p ON p.user_id=l.user_id
+       WHERE l.online=1 AND l.at>?`
+    ).bind(Date.now() - 15 * 60 * 1000).all();
+    const motoristas = online.map((r) => {
+      const d = r.data ? JSON.parse(r.data) : {};
+      return { username: r.username, name: d.name || r.username, car: d.car || "", whatsapp: d.whatsapp || "", avatar: d.hasAvatar ? `/img/${r.user_id}/avatar?v=${d.avatarVersion}` : "",
+        lat: r.lat, lng: r.lng, at: r.at, me: r.user_id === me.id };
+    });
+    return json({ lugares: await listPlaces(env, ["lugar", "parceiro", "posto"], me), motoristas, city: cityOf(env), categorias: { lugar: LUGAR, parceiro: PARCEIRO }, fuels: FUELS, admin: me.role === "admin" });
   }
   if (p === "/api/lugar" && m === "POST") {
     if (tooMany("lugar" + me.id, 30, 60 * 60 * 1000)) return json({ error: "Muitas marcações seguidas. Espere um pouco." }, 429);
@@ -490,6 +519,7 @@ async function driverApi(req, env, url, p, me, secure) {
         ownerWhatsapp: ownerWhatsapp(env),
         ownerName: env.DRIVER_NAME || "o administrador",
       },
+      online: !!(await env.DB.prepare(`SELECT online FROM driver_locations WHERE user_id=? AND online=1 AND at>?`).bind(me.id, Date.now() - 15 * 60 * 1000).first()),
       pendingRequests: pend?.n || 0,
       city: cityOf(env),
       feedbackCount: fb?.n || 0,
