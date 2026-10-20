@@ -178,6 +178,25 @@ footer a{color:var(--muted);text-underline-offset:3px}
 .qrview button{border:2px solid #0c0e1a;background:#fff;color:#0c0e1a;border-radius:999px;font-weight:800;padding:11px 26px}
 .demo{font-size:13px;color:var(--accent);border:1px dashed var(--accent);border-radius:12px;padding:8px 12px}
 
+/* ---------- Barra do passageiro ---------- */
+body.has-nav{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+.pnav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border-top:1px solid var(--line);
+  padding:0 max(6px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(6px,env(safe-area-inset-left,0px))}
+.pnav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:62px;color:var(--muted);font-size:12px;font-weight:700;text-decoration:none}
+.pnav a svg{width:24px;height:24px}
+.pnav a[aria-current=page]{color:var(--accent)}
+.fav{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);background:var(--panel);padding:0;color:var(--fg);flex:none}
+.fav[aria-pressed=true]{color:#ff6b86;border-color:#ff6b86}
+.fav[aria-pressed=true] svg{fill:currentColor}
+/* Cadeado da música */
+.lockbox{display:flex;flex-direction:column;gap:12px;padding:16px}
+.lockbox .lh{display:flex;gap:12px;align-items:center}
+.lockbox .lh svg{width:26px;height:26px;color:var(--accent)}
+.lockbox .lh b{display:block;font-size:17px}
+.codeform{display:grid;grid-template-columns:1fr auto;gap:10px}
+.codeform input{font-size:26px;font-weight:800;letter-spacing:.4em;text-align:center;font-variant-numeric:tabular-nums;padding:10px 12px}
+.codeform .primary{width:auto;padding:0 22px}
+
 /* ---------- Modo edição: o motorista mexe direto na página ---------- */
 body.editing{padding-top:calc(66px + env(safe-area-inset-top,0px));padding-bottom:calc(120px + env(safe-area-inset-bottom,0px))}
 body.editing .tabs{position:static}
@@ -268,6 +287,7 @@ body.editing .tabs{position:static}
     <div class="who">
       <div class="ava" id="ava" aria-hidden="true"></div>
       <div class="id"><b id="whoName"></b><small id="whoLine"></small></div>
+      <button type="button" class="fav" id="favBtn" aria-pressed="false" aria-label="Favoritar motorista" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg></button>
       <button type="button" class="iconbtn" id="showQr" aria-label="Mostrar QR code deste perfil">
         <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>QR</button>
     </div>
@@ -319,6 +339,13 @@ body.editing .tabs{position:static}
   <button type="button" id="closeQr">Fechar</button>
 </div>
 
+<nav class="pnav" id="pnav" aria-label="Driver Hub" hidden>
+  <a href="#" id="navMe" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM3 17h18v3H3zM7 20v1.5M17 20v1.5M8.5 13.5h.01M15.5 13.5h.01"/></svg>Motorista</a>
+  <a href="/motoristas"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 20a6.5 6.5 0 0 0-3-5.5"/></svg>Motoristas</a>
+  <a href="/mapa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5zM9 4v13M15 6.5v13"/></svg>Mapa</a>
+  <a href="/conta"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Conta</a>
+</nav>
+
 <!-- Modo edição -->
 <div class="edtop" id="edTop" hidden>
   <span><b>Editando sua página</b><small>Toque no que quiser mudar</small></span>
@@ -352,11 +379,20 @@ body.editing .tabs{position:static}
       <label class="vol" for="vol" style="margin-top:14px"><span>Volume</span><input type="range" id="vol" min="0" max="100" step="5" value="50"><b id="volN">50%</b></label>
       <div class="msg" id="ctrlMsg" role="status"></div>
     </div>
+    <div class="panel lockbox" data-lock hidden>
+      <div class="lh"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        <span><b>Música liberada durante a corrida</b><span class="hint">Peça o código de 4 números pro motorista.</span></span></div>
+      <form class="codeform" data-codeform novalidate>
+        <input inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="0000" aria-label="Código da corrida" data-code>
+        <button class="primary" type="submit">Liberar</button>
+      </form>
+      <div class="msg" data-codemsg role="status"></div>
+    </div>
     <div class="panel mode" data-pedido>
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       <span>Escolha a música e ela vai direto pro celular do motorista. Ele coloca pra tocar assim que der.</span>
     </div>
-    <div class="search">
+    <div class="search" data-search>
       <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
       <input type="search" id="q" placeholder="Busca música ou artista" autocomplete="off" enterkeyhint="search" aria-label="Buscar música">
     </div>
@@ -470,9 +506,15 @@ body.editing .tabs{position:static}
   var api = function(a){ return "/api/p/"+encodeURIComponent(P.username)+"/"+a; };
   function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]}); }
   function setMsg(id,text,kind){ var m=$(id); if(!m) return; m.textContent=text; m.className="msg "+(kind||""); }
+  // Passe da corrida: guardado por motorista depois de digitar o código certo
+  var PASS_KEY="corrida:"+P.username;
+  function getPass(){ try{ return localStorage.getItem(PASS_KEY)||""; }catch(e){ return ""; } }
+  function setPass(v){ try{ if(v) localStorage.setItem(PASS_KEY,v); else localStorage.removeItem(PASS_KEY); }catch(e){} }
+  function locked(){ return !!(P.music&&P.music.locked)&&!getPass()&&!EDIT&&!demo; }
   function post(url,data){
-    return fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data),credentials:"same-origin"})
-      .then(function(r){ return r.json().catch(function(){return {}}).then(function(j){ return {ok:r.ok,j:j}; }); });
+    var h={"Content-Type":"application/json"}, ps=getPass(); if(ps) h["x-corrida"]=ps;
+    return fetch(url,{method:"POST",headers:h,body:JSON.stringify(data),credentials:"same-origin"})
+      .then(function(r){ return r.json().catch(function(){return {}}).then(function(j){ if(r.status===423){ setPass(""); setTimeout(render,0); } return {ok:r.ok,j:j}; }); });
   }
   function fmtPhone(n){ n=String(n||"").replace(/\D/g,""); if(n.length===13) return "("+n.slice(2,4)+") "+n.slice(4,9)+"-"+n.slice(9); if(n.length===12) return "("+n.slice(2,4)+") "+n.slice(4,8)+"-"+n.slice(8); if(n.length===11) return "("+n.slice(0,2)+") "+n.slice(2,7)+"-"+n.slice(7); return n; }
   function initials(n){ return String(n||"?").trim().charAt(0).toUpperCase(); }
@@ -606,10 +648,27 @@ body.editing .tabs{position:static}
   var playing=true, polling=false;
   function initMusic(root){
     var control=P.music&&P.music.mode==="control";
+    var loadNow=function(){ return loadNowImpl(); };
     root.querySelector("[data-control]").hidden=!control;
     root.querySelector("[data-pedido]").hidden=control;
     if(control&&!P.music.control){ root.querySelector("#ctrl").hidden=true; root.querySelector(".vol").hidden=true; }
     if(!control) root.querySelector("#h-music").textContent="Pede a sua";
+    if(locked()){
+      ["[data-pedido]","[data-search]","#results","#songMsg","#ctrl",".vol","#ctrlMsg"].forEach(function(sel){ var el=root.querySelector(sel); if(el) el.hidden=true; });
+      if(!control) root.querySelector("[data-control]").hidden=true;
+      var lb=root.querySelector("[data-lock]"); lb.hidden=false;
+      lb.querySelector("[data-codeform]").addEventListener("submit",function(e){
+        e.preventDefault(); var inp=lb.querySelector("[data-code]"), msg=lb.querySelector("[data-codemsg]");
+        var code=inp.value.replace(/\D/g,""); if(code.length!==4){ msg.textContent="O código tem 4 números."; msg.className="msg err"; inp.focus(); return; }
+        msg.textContent="Conferindo…"; msg.className="msg";
+        post(api("codigo"),{code:code}).then(function(x){
+          if(x.ok){ setPass(x.j.pass||"ok"); render(); setTimeout(function(){ var q=$("q"); if(q) q.focus(); },50); }
+          else { msg.textContent=x.j.error||"Não deu certo."; msg.className="msg err"; inp.select(); }
+        }).catch(function(){ msg.textContent="Sem conexão. Tente de novo."; msg.className="msg err"; });
+      });
+      if(control){ loadNow(); if(!polling&&!P.preview){ polling=true; setInterval(loadNow,8000); } }
+      return true;
+    }
     var ICO_PAUSE='<path d="M7 5h4v14H7zM13 5h4v14h-4z"/>', ICO_PLAY='<path d="M7 4v16l13-8z"/>';
     function showNow(j){
       if(!$("now")) return;
@@ -618,7 +677,7 @@ body.editing .tabs{position:static}
       playing=!!j.playing; $("playIco").innerHTML=playing?ICO_PAUSE:ICO_PLAY;
       if(typeof j.volume==="number"&&document.activeElement!==$("vol")){ $("vol").value=j.volume; $("volN").textContent=j.volume+"%"; }
     }
-    function loadNow(){
+    function loadNowImpl(){
       if(demo){ showNow({name:"Música de exemplo",artists:"Artista",playing:playing,volume:Number($("vol").value)}); return; }
       if(document.hidden||!$("now")) return;
       fetch(api("now")).then(function(r){return r.json()}).then(function(j){ if(j&&j.name) showNow(j); }).catch(function(){});
@@ -637,7 +696,7 @@ body.editing .tabs{position:static}
     function search(q){
       if(demo){ render([{name:"Música de exemplo 1",artists:"Artista A",uri:"demo"},{name:"Música de exemplo 2",artists:"Artista B",uri:"demo"}]); return; }
       setMsg("songMsg","Buscando…");
-      fetch(api("search")+"?q="+encodeURIComponent(q)).then(function(r){return r.json()}).then(function(j){
+      fetch(api("search")+"?q="+encodeURIComponent(q),{headers:getPass()?{"x-corrida":getPass()}:{}}).then(function(r){ if(r.status===423){ setPass(""); render(); throw 0; } return r.json(); }).then(function(j){
         render(j.tracks||[]); setMsg("songMsg",(j.tracks||[]).length?"":"Nada encontrado. Tente outro nome.");
       }).catch(function(){ setMsg("songMsg","A busca não respondeu. Tente de novo.","err"); });
     }
@@ -1037,12 +1096,37 @@ body.editing .tabs{position:static}
   var toastT;
   function toast(t,stay){ var el=$("toast"); el.textContent=t; el.hidden=false; clearTimeout(toastT); if(!stay) toastT=setTimeout(function(){ el.hidden=true; },2400); }
 
+  // ---------- Passageiro ----------
+  function initPassenger(){
+    // QR da tela do motorista traz o código: libera sozinho e limpa o endereço
+    var sp=new URLSearchParams(location.search), c=(sp.get("c")||sp.get("codigo")||"").replace(/\D/g,"");
+    if(c.length===4&&P.music&&P.music.locked){
+      post(api("codigo"),{code:c}).then(function(x){ if(x.ok){ setPass(x.j.pass||"ok"); render(); } });
+    }
+    if(sp.has("c")||sp.has("codigo")) history.replaceState(null,"",location.pathname+location.hash);
+    if(location.hash==="#perfil") select(1);
+    try{ localStorage.setItem("ultimoMotorista",P.username); }catch(e){}
+    document.body.classList.add("has-nav"); $("pnav").hidden=false; $("navMe").href=location.pathname==="/"?"/":"/"+P.username;
+    // Favoritar: com conta salva, sem conta convida a criar
+    var fav=$("favBtn"); fav.hidden=false; var logged=false;
+    fetch("/api/favoritos",{credentials:"same-origin"}).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){
+      logged=true; var on=(j.favoritos||[]).some(function(f){ return f.kind==="motorista"&&f.ref===P.username; });
+      fav.setAttribute("aria-pressed",String(on));
+    }).catch(function(){});
+    fav.addEventListener("click",function(){
+      if(!logged){ if(confirm("Crie uma conta grátis pra salvar seus motoristas favoritos. Criar agora?")) location.href="/conta?voltar="+encodeURIComponent(location.pathname); return; }
+      var on=fav.getAttribute("aria-pressed")!=="true"; fav.setAttribute("aria-pressed",String(on));
+      post("/api/favoritos",{kind:"motorista",ref:P.username,on:on}).then(function(x){ if(!x.ok) fav.setAttribute("aria-pressed",String(!on)); else toast(on?"Salvo nos favoritos":"Tirado dos favoritos"); });
+    });
+  }
+
   // ---------- Início ----------
   if(EDIT) initEdit();
   render();
   if(demo) $("demo").hidden=false;
   if(P.owner&&!EDIT) $("adminLink").hidden=false;
   if(P.preview&&!EDIT) document.addEventListener("click",function(e){ if(e.target.closest("a")) e.preventDefault(); },true);
+  if(!EDIT&&!demo&&!P.preview) initPassenger();
   if(EDIT) document.addEventListener("click",function(e){ var a=e.target.closest("a"); if(a&&a.id!=="edExit") e.preventDefault(); },true);
 })();
 </script>

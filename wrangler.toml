@@ -2,7 +2,11 @@ name = "corrida"
 main = "src/worker.js"
 compatibility_date = "2026-09-01"
 
-# Arquivos fixos (foto do lobo, ícones)
+# Toda segunda, 6h (horário de Brasília): atualiza os postos do mapa
+[triggers]
+crons = ["0 9 * * 1"]
+
+# Arquivos fixos (foto do lobo, ícones, mapa)
 [assets]
 directory = "./public"
 
@@ -30,6 +34,11 @@ WHATSAPP = "5564993056133"
 PIX_KEY = "+5564993056133"           # chave Pix = celular
 PIX_NAME = "AUGUSTO L ORDONHES"      # até 25 letras, sem acento
 PIX_CITY = "CALDAS NOVAS"            # até 15 letras, sem acento
+
+# ---- Cidade do mapa (centro e nome) ----
+CITY_NAME = "Caldas Novas"
+CITY_LAT = "-17.7441"
+CITY_LNG = "-48.6250"
 
 # Segredos (NÃO colocar aqui), já cadastrados no Cloudflare:
 #   SPOTIFY_CLIENT_SECRET

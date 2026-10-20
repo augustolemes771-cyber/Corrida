@@ -36,6 +36,7 @@ export function defaultProfile({ name = "", whatsapp = "" } = {}) {
       { id: "pesquisa", on: false },
     ],
     music: { service: "spotify", control: true },
+    rideCode: { on: true, code: "", version: 1 },
     hasAvatar: false,
     bgVersion: 0,
     avatarVersion: 0,
@@ -128,6 +129,6 @@ export function publicProfile(user, p, music) {
     waMsg: p.waMsg,
     pix: on("pix") && p.pixKey ? { key: p.pixKey, name: p.pixName || p.name, city: p.pixCity || p.city } : null,
     links: on("links") ? p.links : [],
-    music, // { mode: "control" | "pedido", control: bool, service }
+    music: { ...music, locked: !!(p.rideCode && p.rideCode.on && p.rideCode.code) }, // mode: control | pedido
   };
 }

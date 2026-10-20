@@ -51,7 +51,7 @@ export async function body(req) {
 export const RESERVED = new Set([
   "api", "painel", "admin", "entrar", "cadastro", "sair", "callback", "login", "spotify", "img", "respostas",
   "static", "public", "assets", "favicon", "robots", "sobre", "ajuda", "termos", "privacidade", "corrida", "motorista",
-  "motoristas", "app", "www", "lobo", "index", "perfil", "config", "editar", "previa",
+  "motoristas", "app", "www", "lobo", "index", "perfil", "config", "editar", "previa", "mapa", "conta", "pitstop", "postos", "lugares", "favoritos", "indicacoes", "passageiro",
 ]);
 
 export const validUsername = (u) => /^[a-z0-9][a-z0-9._]{2,19}$/.test(u) && !RESERVED.has(u);

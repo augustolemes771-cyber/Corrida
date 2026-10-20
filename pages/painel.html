@@ -11,6 +11,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Figtree:wght@400;500;600;700;800&family=Fredoka:wght@700&family=Bodoni+Moda:opsz,wght@6..96,800&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" defer></script>
+<script src="/mapa.js" defer></script>
 <style>
 /* Painel do motorista: usado no celular, no carro parado, muitas vezes de madrugada. Escuro, alvos grandes. */
 :root{
@@ -106,12 +109,96 @@ main{max-width:560px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-rig
 .view{display:flex;flex-direction:column;gap:18px}
 .view>h2{margin-top:4px}
 
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);background:var(--panel);border-top:1px solid var(--line);
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border-top:1px solid var(--line);
   padding:0 max(6px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(6px,env(safe-area-inset-left,0px))}
 nav.tabs button{position:relative;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--nav);color:var(--muted);font-size:12px;font-weight:700}
 nav.tabs button svg{width:24px;height:24px}
 nav.tabs button[aria-current=page]{color:var(--accent)}
 nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--ink);font-size:11px;font-weight:800;display:grid;place-items:center}
+
+/* Código da corrida */
+.code{display:flex;align-items:center;gap:16px}
+.code .digits{font-family:var(--display);font-weight:900;font-size:68px;line-height:.85;letter-spacing:.1em;color:var(--accent);font-variant-numeric:tabular-nums}
+.code.off .digits{color:var(--muted);opacity:.55}
+.code .t{flex:1;min-width:0}
+.rowsw{display:flex;align-items:center;gap:12px}
+.rowsw span{flex:1;font-weight:700}
+.rowsw small{display:block;font-weight:500;color:var(--muted);font-size:13px}
+
+/* Pit Stop */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;border:1.5px solid var(--line);background:var(--panel);border-radius:18px;padding:16px;min-height:136px}
+.tile.big{grid-column:1/-1;min-height:120px;flex-direction:row;align-items:center;background:var(--panel2)}
+.tile .ti{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;color:#0c0e1a;flex:none}
+.tile .ti svg{width:24px;height:24px}
+.tile b{display:block;font-size:18px;font-weight:800;line-height:1.2}
+.tile small{display:block;color:var(--muted);font-size:14px}
+.tile:active{transform:scale(.98)}
+.back{display:inline-flex;align-items:center;gap:4px;border:0;background:none;color:var(--muted);font-weight:700;padding:4px 0;align-self:flex-start}
+
+/* Mapa do motorista */
+#v-mapa{position:fixed;left:0;right:0;top:var(--toph,64px);bottom:calc(var(--nav) + env(safe-area-inset-bottom,0px));z-index:5;gap:0}
+#dmap{position:absolute;inset:0}
+.mbar{position:absolute;left:0;right:0;top:0;z-index:500;display:flex;flex-direction:column;gap:8px;padding:10px 0 14px;background:linear-gradient(var(--bg) 62%,transparent)}
+.mrow{display:flex;gap:8px;overflow-x:auto;padding:0 12px;scrollbar-width:none}
+.mrow::-webkit-scrollbar{display:none}
+.mrow button{flex:none;display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 12px;font-weight:700;font-size:14px;white-space:nowrap}
+.mrow button .dotc{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.mrow button[aria-pressed=false]{color:var(--muted)}
+.mrow button[aria-pressed=false] .dotc{background:transparent;box-shadow:inset 0 0 0 2px var(--line)}
+.mrow.fuel button[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:#06210f}
+.mfab{position:absolute;right:12px;bottom:16px;z-index:500;width:52px;height:52px;border-radius:50%;border:1.5px solid var(--line);background:var(--panel);display:grid;place-items:center;padding:0;box-shadow:0 8px 16px -8px rgba(0,0,0,.8)}
+.mmark{position:absolute;left:12px;bottom:16px;z-index:500;box-shadow:0 8px 16px -8px rgba(0,0,0,.8)}
+.cross{position:absolute;left:50%;top:50%;z-index:450;transform:translate(-50%,-100%);pointer-events:none;color:var(--accent);filter:drop-shadow(0 4px 6px rgba(0,0,0,.7))}
+.cross svg{width:44px;height:44px;fill:var(--accent);stroke:#0c0e1a;stroke-width:1.5}
+.pickbar{position:absolute;left:12px;right:12px;bottom:16px;z-index:500;display:grid;grid-template-columns:1fr 1.6fr;gap:8px}
+.pickhint{position:absolute;left:50%;top:120px;transform:translateX(-50%);z-index:500;background:var(--fg);color:var(--bg);font-weight:700;border-radius:12px;padding:8px 14px;font-size:14px;white-space:nowrap}
+
+/* Folha (detalhes e formulários) */
+.dsheet{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-end;justify-content:center;background:rgba(4,5,10,.45)}
+.dsheet-box{width:100%;max-width:560px;max-height:84vh;display:flex;flex-direction:column;background:var(--panel);border:1.5px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;
+  box-shadow:0 -20px 40px -20px rgba(0,0,0,.8);animation:sheetup .26s cubic-bezier(.2,.9,.3,1)}
+@keyframes sheetup{from{transform:translateY(36px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.dsheet-box{animation:none}}
+.dsheet-head{display:flex;align-items:center;gap:12px;padding:14px 16px 8px 18px}
+.dsheet-head h3{flex:1;font-family:var(--display);font-weight:800;font-size:26px;line-height:1;text-transform:uppercase;letter-spacing:.02em}
+.dsheet-body{overflow-y:auto;overscroll-behavior:contain;padding:4px 18px calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.xbtn{width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);display:grid;place-items:center;padding:0;flex:none}
+.photo-pick{display:flex;align-items:center;gap:12px}
+.photo-pick img{width:72px;height:72px;border-radius:12px;object-fit:cover;background:var(--bg)}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1.5px solid var(--line);border-radius:14px;background:var(--bg)}
+.seg2 button{border:0;background:transparent;border-radius:10px;padding:10px 0;font-weight:800;color:var(--muted)}
+.seg2 button[aria-pressed=true]{background:var(--accent);color:var(--ink)}
+.prices4{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.money{position:relative}.money span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700}.money input{padding-left:42px;font-variant-numeric:tabular-nums}
+
+/* Postos */
+.fuelseg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px;border:1.5px solid var(--line);border-radius:14px;background:var(--panel)}
+.fuelseg button{border:0;background:transparent;border-radius:10px;padding:10px 0;font-weight:800;color:var(--muted);font-size:14px}
+.fuelseg button[aria-pressed=true]{background:var(--ok);color:#06210f}
+.prow{display:grid;grid-template-columns:30px 1fr auto;gap:4px 12px;align-items:center;padding:14px;border-bottom:1px solid var(--line)}
+.prow:last-child{border-bottom:0}
+.prow .rank{font-family:var(--display);font-weight:900;font-size:24px;color:var(--muted);text-align:center}
+.prow.best .rank{color:var(--ok)}
+.prow .t{min-width:0}.prow .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .t small{display:block;color:var(--muted);font-size:13px}
+.prow .pr{text-align:right}
+.prow .pr b{display:block;font-size:21px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.prow.best .pr b{color:var(--ok)}
+.prow .pr small{color:var(--muted);font-size:12px}
+.prow .pr.none b{font-size:14px;color:var(--muted);font-weight:700}
+.prow .acts{grid-column:2/-1;display:flex;gap:8px;margin-top:6px}
+
+/* Indicações e lugares */
+.cards{display:flex;flex-direction:column;gap:12px}
+.pcard{background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:16px}
+.pcard .more{display:flex;gap:8px;margin-top:10px}
+.filt{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px}
+.filt::-webkit-scrollbar{display:none}
+.filt button{flex:none;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:8px 13px;font-weight:700;font-size:14px;white-space:nowrap}
+.filt button[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.filt button svg{width:16px;height:16px}
+.lico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#0c0e1a;flex:none}
 
 /* Barra de salvar */
 .savebar{position:fixed;left:0;right:0;bottom:calc(var(--nav) + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:center;gap:12px;
@@ -236,6 +323,20 @@ details.howto ol b{color:var(--fg)}
   <main>
     <!-- Início -->
     <section class="view" id="v-inicio" aria-labelledby="h-inicio">
+      <h2>Código da corrida</h2>
+      <div class="block">
+        <div class="code" id="codeBox">
+          <span class="digits" id="codeDigits" aria-live="polite">----</span>
+          <div class="t"><p class="hint" id="codeHint"></p></div>
+        </div>
+        <div class="rowsw"><span>Pedir código pra usar a música<small>A página continua aberta pra todo mundo. Só a música pede o código.</small></span>
+          <button class="switch" type="button" role="switch" id="codeSw" aria-checked="true" aria-label="Pedir código pra usar a música"></button></div>
+        <div class="grid2">
+          <button class="btn" type="button" id="codeNew">Trocar código</button>
+          <button class="btn" type="button" id="codeMine">Escolher código</button>
+        </div>
+      </div>
+
       <h2 id="h-inicio">Mostra pro passageiro</h2>
       <div class="block">
         <div class="share">
@@ -271,6 +372,7 @@ details.howto ol b{color:var(--fg)}
 
     <!-- Perfil -->
     <section class="view" id="v-perfil" aria-labelledby="h-perfil" hidden>
+      <button class="back" type="button" data-go="mais"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Mais</button>
       <h2 id="h-perfil">Seus dados</h2>
       <div class="block">
         <div class="photo">
@@ -320,8 +422,73 @@ details.howto ol b{color:var(--fg)}
       <div class="list" id="reqList"></div>
     </section>
 
+    <!-- Pit Stop -->
+    <section class="view" id="v-pitstop" aria-labelledby="h-pitstop" hidden>
+      <div class="stack" style="gap:6px"><h2 id="h-pitstop">Pit Stop</h2><p class="hint">Tudo que ajuda no corre, num lugar só.</p></div>
+      <div class="tiles">
+        <button class="tile big" type="button" data-go="mapa"><span class="ti" style="background:var(--accent)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5zM9 4v13M15 6.5v13"/></svg></span>
+          <span><b>Mapa</b><small>Postos mais baratos, oficinas, lava-jato e lugares marcados</small></span></button>
+        <button class="tile" type="button" data-go="postos"><span class="ti" style="background:#5fd39a"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16M3.5 21h12M5 10h9M14 8h1.5a2 2 0 0 1 2 2v5.5a1.5 1.5 0 0 0 3 0V8.5L18 6"/></svg></span>
+          <span><b>Melhores postos</b><small id="tilePostos">Preço que a galera informa</small></span></button>
+        <button class="tile" type="button" data-go="indicacoes"><span class="ti" style="background:#6cb2ff"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5l3 3 5.8-5.8a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></span>
+          <span><b>Indicações</b><small>Oficinas, lava-jato e parceiros</small></span></button>
+        <button class="tile" type="button" data-go="lugares"><span class="ti" style="background:#ff6b86"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.2a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/></svg></span>
+          <span><b>Lugares da cidade</b><small>Mercado 24h, farmácia, turismo e movimento</small></span></button>
+      </div>
+    </section>
+
+    <!-- Mapa -->
+    <section class="view" id="v-mapa" aria-label="Mapa do motorista" hidden>
+      <div id="dmap"></div>
+      <div class="mbar">
+        <div class="mrow" id="layerRow" role="group" aria-label="Mostrar no mapa"></div>
+        <div class="mrow fuel" id="fuelRow" role="group" aria-label="Combustível"></div>
+      </div>
+      <div class="cross" id="cross" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s-7-6.4-7-11.5a7 7 0 0 1 14 0C19 15.6 12 22 12 22z"/><circle cx="12" cy="10.5" r="2.4" fill="#0c0e1a"/></svg></div>
+      <div class="pickhint" id="pickHint" hidden>Arraste o mapa até o lugar</div>
+      <button class="btn primary mmark" type="button" id="markBtn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Marcar lugar</button>
+      <button class="mfab" type="button" id="locBtn" aria-label="Mostrar onde estou"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg></button>
+      <div class="pickbar" id="pickBar" hidden>
+        <button class="btn" type="button" id="pickCancel">Cancelar</button>
+        <button class="btn primary" type="button" id="pickOk">Marcar aqui</button>
+      </div>
+    </section>
+
+    <!-- Melhores postos -->
+    <section class="view" id="v-postos" aria-labelledby="h-postos" hidden>
+      <button class="back" type="button" data-go="pitstop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Pit Stop</button>
+      <div class="row between"><h2 id="h-postos">Melhores postos</h2><button class="linkbtn" type="button" id="postosNear">Perto de mim</button></div>
+      <div class="fuelseg" id="fuelSeg" role="group" aria-label="Combustível"></div>
+      <p class="hint" id="postosHint">O preço é informado pelos motoristas. Abasteceu? Atualize e ajude a galera.</p>
+      <div class="list" id="postosList"></div>
+      <button class="btn block" type="button" id="postosImport" hidden>Buscar postos de novo no mapa</button>
+    </section>
+
+    <!-- Indicações -->
+    <section class="view" id="v-indicacoes" aria-labelledby="h-ind" hidden>
+      <button class="back" type="button" data-go="pitstop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Pit Stop</button>
+      <div class="stack" style="gap:6px"><h2 id="h-ind">Indicações</h2><p class="hint">Empresas parceiras que atendem bem motorista de app.</p></div>
+      <button class="btn primary block" type="button" id="addPartner" hidden>Cadastrar parceiro</button>
+      <div class="filt" id="indFilt" role="group" aria-label="Filtrar"></div>
+      <div class="cards" id="indList"></div>
+    </section>
+
+    <!-- Lugares da cidade -->
+    <section class="view" id="v-lugares" aria-labelledby="h-lug" hidden>
+      <button class="back" type="button" data-go="pitstop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>Pit Stop</button>
+      <div class="row between"><h2 id="h-lug">Lugares</h2><button class="btn sm primary" type="button" id="addPlace">Marcar lugar</button></div>
+      <p class="hint">O que você marca aparece no seu mapa e no mapa dos passageiros. Ponto de apoio e Movimento agora só os motoristas veem.</p>
+      <div class="filt" id="lugFilt" role="group" aria-label="Filtrar"></div>
+      <div class="list" id="lugList"></div>
+    </section>
+
     <!-- Mais -->
     <section class="view" id="v-mais" aria-labelledby="h-mais" hidden>
+      <div class="list">
+        <a class="item" href="/editar"><span class="lico" style="background:var(--accent)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span><span class="t"><b>Minha página</b><small>Edite direto nela: blocos, textos, foto e cores</small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--muted)"><path d="M9 5l7 7-7 7"/></svg></a>
+        <button class="item" type="button" data-go="perfil"><span class="lico" style="background:#6cb2ff"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="t"><b>Meus dados</b><small>Nome, carro, contato e Pix</small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--muted)"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+
       <div id="adminArea" hidden class="view"></div>
 
       <h2 id="h-mais">Respostas</h2>
@@ -350,8 +517,7 @@ details.howto ol b{color:var(--fg)}
 
   <nav class="tabs" aria-label="Seções do painel">
     <button type="button" data-v="inicio" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 20h.01M20 14v.01M14 20h.01"/></svg>Início</button>
-    <button type="button" data-v="perfil"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Perfil</button>
-    <button type="button" data-v="pagina"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-1.3-1-1.6-1-2.7 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.3 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>Página</button>
+    <button type="button" data-v="pitstop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5l3 3 5.8-5.8a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>Pit Stop</button>
     <button type="button" data-v="musica"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Música<span class="badge" id="reqBadge" hidden></span></button>
     <button type="button" data-v="mais"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Mais</button>
   </nav>
@@ -360,9 +526,17 @@ details.howto ol b{color:var(--fg)}
 <div class="qrfull" id="qrFull" hidden role="dialog" aria-modal="true" aria-labelledby="qrFullTitle">
   <h3 id="qrFullTitle">Escaneia e <em>escolhe a música</em></h3>
   <div class="box" id="qrFullBox"></div>
+  <p id="qrFullHint" style="margin:0;font-weight:700"></p>
   <button type="button" id="qrClose">Fechar</button>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="dsheet" id="dsheet" hidden role="dialog" aria-modal="true" aria-labelledby="dsTitle">
+  <div class="dsheet-box">
+    <div class="dsheet-head"><h3 id="dsTitle"></h3><button class="xbtn" type="button" id="dsClose" aria-label="Fechar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="dsheet-body" id="dsBody"></div>
+  </div>
+</div>
+<input type="file" id="placeFile" accept="image/*" hidden>
 
 <script>
 (function(){
@@ -429,6 +603,7 @@ details.howto ol b{color:var(--fg)}
   function boot(){
     call("GET","/api/me").then(function(x){
       $("loading").hidden=true;
+      if(x.status===403){ location.href="/conta"; return; }
       if(!x.ok){ $("auth").hidden=false; $("app").hidden=true; if(location.pathname==="/cadastro") authMode(true); return; }
       S.me=x.j; S.tags=x.j.tags; S.saved=x.j.profile; S.draft=clone(S.saved);
       $("auth").hidden=true; $("app").hidden=false;
@@ -439,7 +614,7 @@ details.howto ol b{color:var(--fg)}
     });
   }
 
-  function renderAll(){ renderTop(); renderHome(); renderProfileForm(); renderMusic(); renderMore(); markDirty(); }
+  function renderAll(){ renderTop(); renderCode(); renderHome(); renderProfileForm(); renderMusic(); renderMore(); markDirty(); }
 
   function renderTop(){
     var p=S.saved, u=S.me.user;
@@ -484,7 +659,10 @@ details.howto ol b{color:var(--fg)}
   });
   var lock=null;
   $("qrBig").addEventListener("click",function(){
-    drawQR($("qrFullBox"),profileUrl()); $("qrFull").hidden=false; $("qrClose").focus();
+    var r=rideCode(), withCode=r.on&&r.code;
+    drawQR($("qrFullBox"),profileUrl()+(withCode?"?c="+r.code:""));
+    $("qrFullHint").textContent=withCode?"Esse QR já libera a música da corrida":"";
+    $("qrFull").hidden=false; $("qrClose").focus();
     try{ if(navigator.wakeLock) navigator.wakeLock.request("screen").then(function(l){lock=l}).catch(function(){}); }catch(e){}
   });
   function closeQr(){ $("qrFull").hidden=true; try{ if(lock){lock.release();lock=null;} }catch(e){} $("qrBig").focus(); }
@@ -778,6 +956,294 @@ details.howto ol b{color:var(--fg)}
   });
   $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(){ location.href="/painel"; }); });
 
+
+  // ================= Código da corrida =================
+  function rideCode(){ return (S.saved&&S.saved.rideCode)||{on:false,code:""}; }
+  function renderCode(){
+    var r=rideCode();
+    $("codeDigits").textContent=r.code||"----";
+    $("codeBox").classList.toggle("off",!r.on);
+    $("codeSw").setAttribute("aria-checked",String(!!r.on));
+    $("codeHint").textContent=r.on?"Fale esse código pro passageiro, ou mostre o QR em tela cheia, que já leva o código.":"Desligado: qualquer pessoa com o link pode mexer na música.";
+  }
+  function saveCode(data,ok){
+    call("POST","/api/codigo",data).then(function(x){
+      if(!x.ok){ toast(x.j.error||"Não deu certo."); return; }
+      S.saved.rideCode=x.j.rideCode; S.draft.rideCode=x.j.rideCode; renderCode(); if(ok) toast(ok);
+    });
+  }
+  $("codeSw").addEventListener("click",function(){ saveCode({on:!rideCode().on},rideCode().on?"Código desligado":"Código ligado"); });
+  $("codeNew").addEventListener("click",function(){ saveCode({novo:true},"Código novo. O anterior parou de valer."); });
+  $("codeMine").addEventListener("click",function(){
+    var c=prompt("Digite um código de 4 números:",rideCode().code||""); if(c===null) return;
+    saveCode({code:c},"Código salvo");
+  });
+
+  // ================= Pit Stop =================
+  var PS={loaded:false,list:[],cats:{lugar:{},parceiro:{}},admin:false,city:null,loading:null};
+  var FUELS=["gasolina","etanol","diesel","gnv"], FUEL="gasolina", here=null;
+  try{ FUEL=localStorage.getItem("combustivel")||"gasolina"; }catch(e){}
+  function loadPS(force){
+    if(PS.loaded&&!force) return Promise.resolve();
+    if(PS.loading&&!force) return PS.loading;
+    PS.loading=call("GET","/api/mapa").then(function(x){
+      PS.loading=null;
+      if(!x.ok){ toast(x.j.error||"Não deu pra carregar o mapa."); return; }
+      PS.list=x.j.lugares||[]; PS.cats=x.j.categorias||PS.cats; PS.admin=!!x.j.admin; PS.city=x.j.city; PS.loaded=true;
+      refreshPS();
+    });
+    return PS.loading;
+  }
+  function refreshPS(){
+    var n=PS.list.filter(function(p){ return p.kind==="posto"&&p.prices&&p.prices[FUEL]; }).length;
+    $("tilePostos").textContent=n?n+" com preço de "+DHMap.FUEL_LABEL[FUEL].toLowerCase():"Preço que a galera informa";
+    if(S.view==="mapa") drawMap();
+    if(S.view==="postos") renderPostos();
+    if(S.view==="indicacoes") renderInd();
+    if(S.view==="lugares") renderLug();
+  }
+  function catsOf(p){ return p.kind==="posto"?{}:(PS.cats[p.kind]||{}); }
+  function catLabel(p){ return p.kind==="posto"?"Posto":((catsOf(p)[p.category]||{}).label||""); }
+  function fresh(pr){ return pr&&(Date.now()-pr.at)<10*864e5; }
+  function bestPosto(){
+    var best=null;
+    PS.list.forEach(function(p){ var pr=p.kind==="posto"&&p.prices&&p.prices[FUEL]; if(fresh(pr)&&(!best||pr.cents<best.prices[FUEL].cents)) best=p; });
+    return best;
+  }
+  function setFuel(f){ FUEL=f; try{ localStorage.setItem("combustivel",f); }catch(e){} refreshPS(); renderFuelRows(); }
+  function renderFuelRows(){
+    var h=FUELS.map(function(f){ return '<button type="button" data-fuel="'+f+'" aria-pressed="'+(f===FUEL)+'">'+DHMap.FUEL_LABEL[f]+'</button>'; }).join("");
+    $("fuelRow").innerHTML=h; $("fuelSeg").innerHTML=h;
+  }
+  $("fuelRow").addEventListener("click",function(e){ var b=e.target.closest("[data-fuel]"); if(b) setFuel(b.dataset.fuel); });
+  $("fuelSeg").addEventListener("click",function(e){ var b=e.target.closest("[data-fuel]"); if(b) setFuel(b.dataset.fuel); });
+  function locate(done){
+    if(!navigator.geolocation){ toast("Seu celular não deixou pegar a localização."); return; }
+    navigator.geolocation.getCurrentPosition(function(pos){ here={lat:pos.coords.latitude,lng:pos.coords.longitude}; done&&done(); },
+      function(){ toast("Não deu pra pegar sua localização. Confira a permissão."); },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+  }
+
+  // ----- Mapa -----
+  var LAYERS=[
+    {id:"postos",label:"Postos",c:"#5fd39a",test:function(p){ return p.kind==="posto"; }},
+    {id:"oficina",label:"Oficinas",c:"#6cb2ff",test:function(p){ return p.kind==="parceiro"&&p.category==="oficina"; }},
+    {id:"lavajato",label:"Lava-jato",c:"#6cb2ff",test:function(p){ return p.kind==="parceiro"&&p.category==="lavajato"; }},
+    {id:"estetica",label:"Estética",c:"#6cb2ff",test:function(p){ return p.kind==="parceiro"&&p.category==="estetica"; }},
+    {id:"servicos",label:"Outros serviços",c:"#6cb2ff",test:function(p){ return p.kind==="parceiro"&&["oficina","lavajato","estetica"].indexOf(p.category)<0; }},
+    {id:"lugares",label:"Lugares",c:"#ffb347",test:function(p){ return p.kind==="lugar"&&p.category!=="movimento"&&p.category!=="apoio"; }},
+    {id:"movimento",label:"Movimento agora",c:"#ff6b86",test:function(p){ return p.kind==="lugar"&&p.category==="movimento"; }},
+    {id:"apoio",label:"Ponto de apoio",c:"#3fd6ea",test:function(p){ return p.kind==="lugar"&&p.category==="apoio"; }}
+  ];
+  var hidden={}; try{ hidden=JSON.parse(localStorage.getItem("camadas")||"{}"); }catch(e){}
+  var dmap=null, dlayer=null, meDot=null, picking=null;
+  function renderLayerRow(){
+    $("layerRow").innerHTML=LAYERS.map(function(l){ return '<button type="button" data-layer="'+l.id+'" aria-pressed="'+!hidden[l.id]+'" style="--c:'+l.c+'"><span class="dotc"></span>'+l.label+'</button>'; }).join("");
+    $("fuelRow").hidden=!!hidden.postos;
+  }
+  $("layerRow").addEventListener("click",function(e){ var b=e.target.closest("[data-layer]"); if(!b) return; hidden[b.dataset.layer]=!hidden[b.dataset.layer];
+    try{ localStorage.setItem("camadas",JSON.stringify(hidden)); }catch(_){} renderLayerRow(); drawMap(); });
+  function visible(p){ return LAYERS.some(function(l){ return !hidden[l.id]&&l.test(p); }); }
+  function showMap(focus){
+    measureTop();
+    if(typeof L==="undefined"||typeof DHMap==="undefined"){ setTimeout(function(){ showMap(focus); },200); return; }
+    if(!dmap){
+      dmap=DHMap.create($("dmap"),PS.city||S.me.city,{zoom:14}); dlayer=L.layerGroup().addTo(dmap);
+      renderLayerRow(); renderFuelRows();
+    }
+    setTimeout(function(){ dmap.invalidateSize(); },60);
+    loadPS().then(function(){ drawMap(); if(focus){ dmap.setView([focus.lat,focus.lng],17); openPlace(focus); } });
+  }
+  function drawMap(){
+    if(!dmap) return; dlayer.clearLayers();
+    var best=bestPosto();
+    PS.list.filter(visible).forEach(function(p){
+      DHMap.marker(p,{fuel:FUEL,best:best&&best.id}).on("click",function(e){ L.DomEvent.stopPropagation(e); if(!picking) openPlace(p); }).addTo(dlayer);
+    });
+  }
+  $("locBtn").addEventListener("click",function(){ locate(function(){ if(meDot) meDot.remove(); meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); }); });
+  function startPick(state){
+    picking=state; closeSheet();
+    if(S.view!=="mapa"){ go("mapa"); }
+    if(state.lat&&dmap) dmap.setView([state.lat,state.lng],17);
+    $("cross").hidden=false; $("pickHint").hidden=false; $("pickBar").hidden=false; $("markBtn").hidden=true; $("locBtn").hidden=true;
+  }
+  function endPick(){ picking=null; $("cross").hidden=true; $("pickHint").hidden=true; $("pickBar").hidden=true; $("markBtn").hidden=false; $("locBtn").hidden=false; }
+  $("markBtn").addEventListener("click",function(){ startPick({kind:"lugar"}); });
+  $("pickCancel").addEventListener("click",function(){ var st=picking; endPick(); if(st&&st.id) openForm(st); });
+  $("pickOk").addEventListener("click",function(){ var c=dmap.getCenter(), st=picking; endPick(); st.lat=c.lat; st.lng=c.lng; openForm(st); });
+
+  // ----- Folha -----
+  function openSheet(title,html){ $("dsTitle").textContent=title; $("dsBody").innerHTML=html; $("dsheet").hidden=false; $("dsBody").scrollTop=0; }
+  function closeSheet(){ $("dsheet").hidden=true; }
+  $("dsClose").addEventListener("click",closeSheet);
+  $("dsheet").addEventListener("click",function(e){ if(e.target===this) closeSheet(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape"&&!$("dsheet").hidden) closeSheet(); });
+
+  var current=null;
+  function openPlace(p){
+    current=p;
+    var acts="";
+    if(p.kind==="posto") acts+='<button class="btn primary block" type="button" data-act="preco">Atualizar preço</button>';
+    if(p.kind!=="posto"&&(p.mine||PS.admin)) acts+='<div class="grid2"><button class="btn" type="button" data-act="editar">Editar</button><button class="btn danger" type="button" data-act="apagar">Apagar</button></div>';
+    if(S.view!=="mapa") acts+='<button class="btn block" type="button" data-act="mapa">Ver no mapa</button>';
+    openSheet(catLabel(p)||"Lugar",DHMap.card(p,catsOf(p),{from:here})+acts);
+  }
+  $("dsBody").addEventListener("click",function(e){
+    var b=e.target.closest("[data-act]"); if(!b||!current) return; var a=b.dataset.act, p=current;
+    if(a==="preco") openPrice(p);
+    if(a==="editar") openForm(Object.assign({},p));
+    if(a==="mapa"){ closeSheet(); go("mapa"); showMap(p); }
+    if(a==="apagar"&&confirm("Apagar “"+p.name+"”?")) call("POST","/api/lugar/"+p.id+"/apagar").then(function(x){ if(!x.ok){ toast(x.j.error); return; } closeSheet(); toast("Apagado"); loadPS(true); });
+  });
+
+  // ----- Preço do posto -----
+  function openPrice(p){
+    current=p;
+    var h='<p class="hint">'+DHMap.esc(p.name)+'. Coloque só o que você viu na bomba.</p><div class="prices4">'+FUELS.map(function(f){
+      var pr=p.prices&&p.prices[f];
+      return '<label class="f">'+DHMap.FUEL_LABEL[f]+'<div class="money"><span>R$</span><input inputmode="decimal" data-fuel-in="'+f+'" placeholder="'+(pr?(pr.cents/100).toFixed(2).replace(".",","):"0,00")+'"></div></label>';
+    }).join("")+'</div><button class="btn primary block" type="button" id="priceSave">Salvar preço</button><div class="msg" id="priceMsg" role="status"></div>';
+    openSheet("Atualizar preço",h);
+    var first=$("dsBody").querySelector('[data-fuel-in="'+FUEL+'"]'); if(first) setTimeout(function(){ first.focus(); },80);
+    $("priceSave").addEventListener("click",function(){
+      var data={}; $("dsBody").querySelectorAll("[data-fuel-in]").forEach(function(i){ if(i.value.trim()) data[i.dataset.fuelIn]=i.value.trim(); });
+      if(!Object.keys(data).length){ setMsg("priceMsg","Coloque pelo menos um preço.","err"); return; }
+      call("POST","/api/posto/"+p.id+"/preco",data).then(function(x){
+        if(!x.ok){ setMsg("priceMsg",x.j.error||"Não deu certo.","err"); return; }
+        closeSheet(); toast("Valeu! Preço atualizado pra galera."); loadPS(true);
+      });
+    });
+  }
+
+  // ----- Formulário de lugar / parceiro -----
+  var F=null, Fphoto=null;
+  function openForm(st){
+    F=Object.assign({kind:"lugar",category:"",name:"",open24:false,hours:"",address:"",desc:"",whatsapp:"",phone:"",instagram:"",link:"",discount:""},st);
+    if(F.kind==="parceiro"&&!PS.admin) F.kind="lugar";
+    Fphoto=null; renderForm();
+  }
+  function renderForm(){
+    var cats=PS.cats[F.kind]||{}, E=DHMap.esc;
+    if(!cats[F.category]) F.category=F.kind==="parceiro"?"oficina":"mercado";
+    var h=(PS.admin&&!F.id?'<div class="seg2"><button type="button" data-k2="lugar" aria-pressed="'+(F.kind==="lugar")+'">Lugar da cidade</button><button type="button" data-k2="parceiro" aria-pressed="'+(F.kind==="parceiro")+'">Parceiro</button></div>':'')+
+      '<label class="f">Categoria<select data-f="category">'+Object.keys(cats).map(function(k){ return '<option value="'+k+'"'+(k===F.category?" selected":"")+'>'+E(cats[k].label)+'</option>'; }).join("")+'</select></label>'+
+      (F.category==="movimento"?'<p class="note">Some sozinho do mapa em 4 horas. Use pra avisar saída de festa, show e evento.</p>':'')+
+      '<label class="f">Nome<input data-f="name" maxlength="60" value="'+E(F.name)+'" placeholder="'+(F.kind==="parceiro"?"Oficina do Zé":"Mercado Bom Preço")+'"></label>'+
+      '<div class="rowsw"><span>Aberto 24 horas</span><button class="switch" type="button" role="switch" data-f24 aria-checked="'+!!F.open24+'" aria-label="Aberto 24 horas"></button></div>'+
+      (F.open24?'':'<label class="f">Horário<input data-f="hours" maxlength="80" value="'+E(F.hours)+'" placeholder="Seg a sáb, 8h às 18h"></label>')+
+      '<label class="f">Endereço<input data-f="address" maxlength="160" value="'+E(F.address)+'"></label>'+
+      '<label class="f">Descrição<textarea data-f="desc" maxlength="500" rows="3">'+E(F.desc)+'</textarea></label>'+
+      (F.kind==="parceiro"?'<label class="f">Vantagem pro motorista <small>Ex.: 10% de desconto mostrando o Driver Hub</small><input data-f="discount" maxlength="120" value="'+E(F.discount)+'"></label>':'')+
+      '<div class="pair"><label class="f">WhatsApp<input data-f="whatsapp" inputmode="tel" value="'+E(F.whatsapp)+'"></label><label class="f">Telefone<input data-f="phone" inputmode="tel" value="'+E(F.phone)+'"></label></div>'+
+      '<div class="pair"><label class="f">Instagram<input data-f="instagram" autocapitalize="none" value="'+E(F.instagram)+'"></label><label class="f">Site<input data-f="link" autocapitalize="none" inputmode="url" value="'+E(F.link)+'"></label></div>'+
+      '<div class="photo-pick">'+(Fphoto||F.photo?'<img src="'+E(Fphoto||F.photo)+'" alt="">':'')+'<button class="btn sm" type="button" data-fphoto>'+(Fphoto||F.photo?"Trocar foto":"Colocar foto")+'</button>'+(F.category==="turismo"?'<span class="hint">A foto aparece em miniatura no mapa.</span>':'')+'</div>'+
+      '<button class="btn block" type="button" data-fmove>Mudar o ponto no mapa</button>'+
+      '<button class="btn primary block" type="button" data-fsave>'+(F.id?"Salvar":"Marcar no mapa")+'</button><div class="msg" id="formMsg" role="status"></div>';
+    openSheet(F.id?"Editar":"Marcar "+(F.kind==="parceiro"?"parceiro":"lugar"),h);
+  }
+  $("dsBody").addEventListener("input",function(e){ if(F&&e.target.dataset.f) F[e.target.dataset.f]=e.target.value; });
+  $("dsBody").addEventListener("change",function(e){ if(F&&e.target.dataset.f==="category"){ F.category=e.target.value; renderForm(); } });
+  $("dsBody").addEventListener("click",function(e){
+    if(!F) return; var b=e.target.closest("button"); if(!b) return;
+    if(b.dataset.k2){ F.kind=b.dataset.k2; F.category=""; renderForm(); }
+    else if(b.hasAttribute("data-f24")){ F.open24=!F.open24; renderForm(); }
+    else if(b.hasAttribute("data-fphoto")) $("placeFile").click();
+    else if(b.hasAttribute("data-fmove")) startPick(F);
+    else if(b.hasAttribute("data-fsave")) saveForm();
+  });
+  $("placeFile").addEventListener("change",function(){
+    var file=this.files[0]; this.value=""; if(!file) return;
+    resize(file,1100,false,.8).then(function(d){ Fphoto=d; renderForm(); }).catch(function(){ toast("Não deu pra ler essa imagem."); });
+  });
+  function saveForm(){
+    if(!F.name.trim()){ setMsg("formMsg","Coloque o nome.","err"); return; }
+    var btn=$("dsBody").querySelector("[data-fsave]"); btn.disabled=true; btn.textContent="Salvando…";
+    call("POST","/api/lugar",F).then(function(x){
+      if(!x.ok){ btn.disabled=false; btn.textContent="Tentar de novo"; setMsg("formMsg",x.j.error||"Não deu certo.","err"); return; }
+      var id=x.j.id;
+      return (Fphoto?call("POST","/api/lugar/"+id+"/foto",{data:Fphoto}):Promise.resolve({ok:true})).then(function(y){
+        if(!y.ok) toast(y.j.error||"O lugar foi salvo, mas a foto não.");
+        closeSheet(); toast(F.id?"Salvo":"Marcado no mapa!"); var saved=F; F=null;
+        return loadPS(true).then(function(){ var p=PS.list.find(function(q){ return q.id===id; }); if(S.view==="mapa"&&p&&dmap) dmap.setView([p.lat,p.lng],17); else if(saved.kind==="parceiro") go("indicacoes"); });
+      });
+    });
+  }
+
+  // ----- Melhores postos -----
+  function renderPostos(){
+    var list=PS.list.filter(function(p){ return p.kind==="posto"; });
+    list.forEach(function(p){ p._pr=p.prices&&p.prices[FUEL]; p._d=here?DHMap.distKm(here,p):null; });
+    list.sort(function(a,b){
+      var A=fresh(a._pr), B=fresh(b._pr);
+      if(A&&B) return a._pr.cents-b._pr.cents||((a._d||0)-(b._d||0));
+      if(A!==B) return A?-1:1;
+      return here?(a._d-b._d):a.name.localeCompare(b.name);
+    });
+    $("postosImport").hidden=!PS.admin;
+    var n=0;
+    $("postosList").innerHTML=list.length?list.map(function(p){
+      var ok=fresh(p._pr); if(ok) n++;
+      return '<div class="prow'+(ok&&n===1?" best":"")+'" data-id="'+p.id+'"><span class="rank">'+(ok?n:"·")+'</span>'+
+        '<div class="t"><b>'+DHMap.esc(p.name)+'</b><small>'+(p._d!=null?DHMap.km(p._d)+" · ":"")+(ok?"atualizado "+DHMap.ago(p._pr.at)+(p._pr.by?" por @"+DHMap.esc(p._pr.by):""):p._pr?"preço antigo, "+DHMap.ago(p._pr.at):"ninguém informou ainda")+'</small></div>'+
+        '<div class="pr'+(ok?"":" none")+'"><b>'+(ok?DHMap.money(p._pr.cents):"Sem preço")+'</b></div>'+
+        '<div class="acts"><button class="btn sm" type="button" data-pa="preco">Atualizar preço</button><button class="btn sm ghost" type="button" data-pa="mapa">Ver no mapa</button></div></div>';
+    }).join(""):'<div class="empty">Buscando os postos da cidade…</div>';
+  }
+  $("postosList").addEventListener("click",function(e){
+    var b=e.target.closest("[data-pa]"); if(!b) return; var id=Number(b.closest("[data-id]").dataset.id), p=PS.list.find(function(q){ return q.id===id; });
+    if(b.dataset.pa==="preco") openPrice(p); else { go("mapa"); showMap(p); }
+  });
+  $("postosNear").addEventListener("click",function(){ locate(renderPostos); });
+  $("postosImport").addEventListener("click",function(){
+    this.disabled=true; this.textContent="Buscando…"; var btn=this;
+    call("POST","/api/admin/postos/importar").then(function(x){ btn.disabled=false; btn.textContent="Buscar postos de novo no mapa";
+      if(!x.ok){ toast(x.j.error); return; } toast(x.j.total+" postos encontrados"); loadPS(true); });
+  });
+
+  // ----- Indicações -----
+  var indCat="todos";
+  function renderInd(){
+    var list=PS.list.filter(function(p){ return p.kind==="parceiro"; }), cats=PS.cats.parceiro||{};
+    var used={}; list.forEach(function(p){ used[p.category]=1; });
+    $("indFilt").innerHTML=["todos"].concat(Object.keys(cats).filter(function(k){ return used[k]; })).map(function(k){
+      return '<button type="button" data-c="'+k+'" aria-pressed="'+(k===indCat)+'">'+(k==="todos"?"Todos":DHMap.icon(k,16)+DHMap.esc(cats[k].label))+'</button>'; }).join("");
+    $("indFilt").hidden=list.length<2;
+    $("addPartner").hidden=!PS.admin;
+    var shown=list.filter(function(p){ return indCat==="todos"||p.category===indCat; });
+    if(here) shown.sort(function(a,b){ return DHMap.distKm(here,a)-DHMap.distKm(here,b); });
+    var wa=S.me.spotify.ownerWhatsapp;
+    $("indList").innerHTML=shown.length?shown.map(function(p){
+      return '<article class="pcard" data-id="'+p.id+'">'+DHMap.card(p,cats,{from:here})+'<div class="more"><button class="btn sm" type="button" data-ia="mapa">Ver no mapa</button>'+
+        (PS.admin?'<button class="btn sm" type="button" data-ia="editar">Editar</button>':'')+'</div></article>';
+    }).join(""):'<div class="empty">Ainda não tem parceiros cadastrados.'+(PS.admin?' Toque em Cadastrar parceiro.':'<br>Conhece uma oficina boa? <a href="https://wa.me/'+wa+'?text='+encodeURIComponent("Oi, quero indicar uma empresa pro Pit Stop do Driver Hub: ")+'" target="_blank" rel="noopener" style="color:var(--accent)">Indique pelo WhatsApp</a></div>');
+  }
+  $("indFilt").addEventListener("click",function(e){ var b=e.target.closest("[data-c]"); if(b){ indCat=b.dataset.c; renderInd(); } });
+  $("indList").addEventListener("click",function(e){
+    var b=e.target.closest("[data-ia]"); if(!b) return; var id=Number(b.closest("[data-id]").dataset.id), p=PS.list.find(function(q){ return q.id===id; });
+    if(b.dataset.ia==="mapa"){ go("mapa"); showMap(p); } else openForm(Object.assign({},p));
+  });
+  $("addPartner").addEventListener("click",function(){ startPick({kind:"parceiro"}); toast("Arraste o mapa até a empresa e toque em Marcar aqui"); });
+
+  // ----- Lugares -----
+  var lugCat="todos";
+  function renderLug(){
+    var list=PS.list.filter(function(p){ return p.kind==="lugar"; }), cats=PS.cats.lugar||{};
+    var used={}; list.forEach(function(p){ used[p.category]=1; });
+    $("lugFilt").innerHTML=["todos","meus"].concat(Object.keys(cats).filter(function(k){ return used[k]; })).map(function(k){
+      return '<button type="button" data-c="'+k+'" aria-pressed="'+(k===lugCat)+'">'+(k==="todos"?"Todos":k==="meus"?"Marcados por mim":DHMap.icon(k,16)+DHMap.esc(cats[k].label))+'</button>'; }).join("");
+    var shown=list.filter(function(p){ return lugCat==="todos"||(lugCat==="meus"&&p.mine)||p.category===lugCat; });
+    $("lugList").innerHTML=shown.length?shown.map(function(p){
+      return '<button class="item" type="button" data-id="'+p.id+'"><span class="lico" style="background:'+DHMap.colorOf(p)+'">'+DHMap.icon(p.category)+'</span><span class="t"><b>'+DHMap.esc(p.name)+'</b><small>'+DHMap.esc(catLabel(p))+(p.open24?" · 24h":"")+(p.by?" · @"+DHMap.esc(p.by):"")+'</small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--muted)"><path d="M9 5l7 7-7 7"/></svg></button>';
+    }).join(""):'<div class="empty">Nenhum lugar aqui ainda. Toque em Marcar lugar.</div>';
+  }
+  $("lugFilt").addEventListener("click",function(e){ var b=e.target.closest("[data-c]"); if(b){ lugCat=b.dataset.c; renderLug(); } });
+  $("lugList").addEventListener("click",function(e){ var b=e.target.closest("[data-id]"); if(!b) return; var p=PS.list.find(function(q){ return q.id===Number(b.dataset.id); }); if(p) openPlace(p); });
+  $("addPlace").addEventListener("click",function(){ startPick({kind:"lugar"}); });
+
+  function measureTop(){ document.documentElement.style.setProperty("--toph",document.querySelector(".top").offsetHeight+"px"); }
+  window.addEventListener("resize",function(){ measureTop(); if(dmap) dmap.invalidateSize(); });
+  document.addEventListener("click",function(e){ var b=e.target.closest("main [data-go]"); if(b&&!b.closest("#statusList")) go(b.dataset.go); });
+
   // ================= Navegação =================
   function go(v){
     // A página se edita direto nela mesma
@@ -785,9 +1251,16 @@ details.howto ol b{color:var(--fg)}
     if(!$("v-"+v)) v="inicio";
     S.view=v;
     document.querySelectorAll(".view[id^=v-]").forEach(function(el){ el.hidden=el.id!=="v-"+v; });
-    document.querySelectorAll("nav.tabs button").forEach(function(b){ if(b.dataset.v===v) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+    var tab={perfil:"mais",mapa:"pitstop",postos:"pitstop",indicacoes:"pitstop",lugares:"pitstop"}[v]||v;
+    document.querySelectorAll("nav.tabs button").forEach(function(b){ if(b.dataset.v===tab) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
     history.replaceState(null,"","#"+v); window.scrollTo(0,0);
+    if(v!=="mapa"&&picking) endPick();
     if(v==="musica") pollRequests();
+    if(v==="mapa") showMap();
+    if(v==="pitstop") loadPS();
+    if(v==="postos"){ renderFuelRows(); renderPostos(); loadPS(); }
+    if(v==="indicacoes"){ renderInd(); loadPS(); }
+    if(v==="lugares"){ renderLug(); loadPS(); }
   }
   document.querySelector("nav.tabs").addEventListener("click",function(e){ var b=e.target.closest("button"); if(b) go(b.dataset.v); });
 

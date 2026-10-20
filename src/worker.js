@@ -2,6 +2,7 @@
 // Perfis públicos dos motoristas (QR/NFC), painel do motorista e área do dono.
 import PERFIL from "../pages/perfil.html";
 import PAINEL from "../pages/painel.html";
+import REDE from "../pages/rede.html";
 import { json, htmlResponse, notice, esc, cut, digits, tooMany, ip, body, validUsername } from "./util.js";
 import { ensureDb, getUserByName, getProfile, saveProfile, ownerWhatsapp } from "./db.js";
 import { hashPassword, checkPassword, createSession, clearCookie, currentUser, endSession, sameOrigin } from "./auth.js";
@@ -10,16 +11,25 @@ import {
   SCOPES, getApp, getLink, appsWithUsage, freeSlotsLeft, requestSlot, setLink, removeLink,
   exchangeCode, rememberToken, spotifyApi, slimTrack,
 } from "./spotify.js";
+import { newCode, makePass, checkPass, codeRequired } from "./ride.js";
+import { LUGAR, PARCEIRO, FUELS, cityOf, cleanPlace, listPlaces, importFuelStations, ensureFuelStations } from "./places.js";
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ctx) {
     try {
       await ensureDb(env);
+      // Postos: se faltar, busca no OpenStreetMap por trás, sem segurar o motorista
+      if (new URL(req.url).pathname === "/api/mapa") ctx.waitUntil(ensureFuelStations(env));
       return await route(req, env);
     } catch (e) {
       console.error(e);
       return json({ error: "Algo deu errado do nosso lado. Tente de novo." }, 500);
     }
+  },
+  // Toda segunda de madrugada: atualiza a lista de postos da cidade
+  async scheduled(event, env) {
+    await ensureDb(env);
+    await importFuelStations(env);
   },
 };
 
@@ -38,9 +48,12 @@ async function route(req, env) {
     return Response.redirect(url.origin + "/painel", 302);
   }
   if (p === "/painel" || p === "/entrar" || p === "/cadastro") return htmlResponse(PAINEL, 200, { "cache-control": "no-store" });
+  if (p === "/motoristas" || p === "/mapa" || p === "/conta")
+    return htmlResponse(REDE.replace("/*CITY*/null", JSON.stringify(cityOf(env))), 200, { "cache-control": "no-store" });
   if (p === "/editar") {
     const me = await currentUser(env, req);
     if (!me) return Response.redirect(url.origin + "/painel", 302);
+    if (me.role === "passenger") return Response.redirect(url.origin + "/conta", 302);
     return renderProfile(env, me, url, true);
   }
 
@@ -68,6 +81,22 @@ async function route(req, env) {
     return json({ ok: true }, 200, { "set-cookie": await createSession(env, id, secure) });
   }
 
+  if (p === "/api/passageiro/cadastro" && m === "POST") {
+    if (tooMany("signup" + ip(req), 20, 60 * 60 * 1000)) return json({ error: "Muitos cadastros seguidos. Tente mais tarde." }, 429);
+    const b = await body(req);
+    const username = cut(b.username, 20).toLowerCase().replace(/^@/, "");
+    const password = String(b.password || "");
+    const name = cut(b.name, 40);
+    if (!validUsername(username)) return json({ error: "Usuário precisa ter de 3 a 20 letras minúsculas, números, ponto ou _.", field: "username" }, 400);
+    if (password.length < 6) return json({ error: "A senha precisa ter pelo menos 6 caracteres.", field: "password" }, 400);
+    if (!name) return json({ error: "Coloque seu nome.", field: "name" }, 400);
+    const res = await env.DB.prepare(`INSERT OR IGNORE INTO users(username,pass,role,created_at) VALUES(?,?,'passenger',?)`)
+      .bind(username, await hashPassword(password), Date.now()).run();
+    if (!res.meta.changes) return json({ error: "Esse usuário já existe. Escolha outro.", field: "username" }, 409);
+    await saveProfile(env, res.meta.last_row_id, { name });
+    return json({ ok: true }, 200, { "set-cookie": await createSession(env, res.meta.last_row_id, secure) });
+  }
+
   if (p === "/api/entrar" && m === "POST") {
     if (tooMany("login" + ip(req), 10)) return json({ error: "Muitas tentativas. Espere alguns minutos." }, 429);
     const b = await body(req);
@@ -91,8 +120,36 @@ async function route(req, env) {
     return new Response(v, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=31536000, immutable" } });
   }
 
+  const pimg = p.match(/^\/img\/p\/(\d+)$/);
+  if (pimg) {
+    const v = await env.RESPOSTAS.get(`img:p:${pimg[1]}`, "arrayBuffer");
+    if (!v) return new Response("Não encontrado", { status: 404 });
+    return new Response(v, { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=31536000, immutable" } });
+  }
+
+  // ---------- Dados públicos (passageiro, sem conta) ----------
+  if (p === "/api/publico/motoristas" && m === "GET") {
+    const { results } = await env.DB.prepare(
+      `SELECT u.id,u.username,p.data FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role IN ('driver','admin') ORDER BY u.id`
+    ).all();
+    return json({
+      motoristas: results.map((r) => {
+        const d = JSON.parse(r.data);
+        return {
+          username: r.username, name: d.name || r.username, city: d.city || "", car: d.car || "", since: d.since || "",
+          avatar: d.hasAvatar ? `/img/${r.id}/avatar?v=${d.avatarVersion}` : "", tags: (d.tags || []).length,
+          accent: d.theme?.accent || "", preset: d.theme?.preset || "noite",
+        };
+      }),
+    }, 200, { "cache-control": "public, max-age=30" });
+  }
+  if (p === "/api/publico/lugares" && m === "GET") {
+    const list = (await listPlaces(env, ["lugar"], null)).filter((x) => LUGAR[x.category]?.passenger);
+    return json({ lugares: list, city: cityOf(env), categorias: LUGAR }, 200, { "cache-control": "public, max-age=30" });
+  }
+
   // ---------- API pública do perfil ----------
-  const pub = p.match(/^\/api\/p\/([a-z0-9._]{3,20})\/(now|control|queue|search|pedido|feedback)$/);
+  const pub = p.match(/^\/api\/p\/([a-z0-9._]{3,20})\/(now|control|queue|search|pedido|feedback|codigo)$/);
   if (pub) return publicApi(req, env, url, pub[1], pub[2]);
 
   // ---------- Spotify: conectar ----------
@@ -116,7 +173,7 @@ async function route(req, env) {
   const prof = p.match(/^\/@?([a-z0-9._]{3,20})$/i);
   if (prof && m === "GET") {
     const user = await getUserByName(env, prof[1]);
-    if (user) return renderProfile(env, user, url);
+    if (user && user.role !== "passenger") return renderProfile(env, user, url);
   }
 
   return notice("Página não encontrada", "Confira o link ou escaneie o QR de novo.", "/", "Ir pro início", 404);
@@ -149,10 +206,18 @@ async function renderProfile(env, user, url, edit = false) {
 
 async function publicApi(req, env, url, username, action) {
   const user = await getUserByName(env, username);
-  if (!user) return json({ error: "Motorista não encontrado." }, 404);
+  if (!user || user.role === "passenger") return json({ error: "Motorista não encontrado." }, 404);
   const p = await getProfile(env, user.id);
   const music = await musicState(env, user.id, p);
   const who = ip(req);
+
+  if (action === "codigo" && req.method === "POST") {
+    if (tooMany("cod" + who + user.id, 12)) return json({ error: "Muitas tentativas. Peça o código de novo pro motorista." }, 429);
+    if (!codeRequired(p)) return json({ ok: true, pass: "" });
+    const code = digits((await body(req)).code);
+    if (code !== p.rideCode.code) return json({ error: "Código errado. Confira com o motorista." }, 403);
+    return json({ ok: true, pass: await makePass(env, user.id, p.rideCode.version) });
+  }
 
   if (action === "feedback" && req.method === "POST") {
     if (!p.modules.find((x) => x.id === "pesquisa")?.on) return json({ error: "Questionário desligado." }, 404);
@@ -174,6 +239,10 @@ async function publicApi(req, env, url, username, action) {
   }
 
   if (!p.modules.find((x) => x.id === "musica")?.on) return json({ error: "Música desligada neste perfil." }, 404);
+
+  // Funções da corrida pedem o código do motorista
+  if (action !== "now" && codeRequired(p) && !(await checkPass(env, user.id, p.rideCode.version, req.headers.get("x-corrida"))))
+    return json({ error: "Digite o código da corrida pra usar a música.", code: "locked" }, 423);
 
   // Busca: com Spotify conectado usa o Spotify do motorista; sem, usa a busca do iTunes (grátis, sem limite de contas).
   if (action === "search") {
@@ -293,8 +362,118 @@ async function spotifyCallback(req, env, url) {
 async function driverApi(req, env, url, p, me, secure) {
   const m = req.method;
 
+  // ---- Favoritos (qualquer conta)
+  if (p === "/api/favoritos" && m === "GET") {
+    const { results } = await env.DB.prepare(`SELECT kind,ref FROM favorites WHERE user_id=? ORDER BY created_at DESC`).bind(me.id).all();
+    return json({ favoritos: results });
+  }
+  if (p === "/api/favoritos" && m === "POST") {
+    const b = await body(req);
+    const kind = b.kind === "lugar" ? "lugar" : "motorista";
+    const ref = cut(b.ref, 40);
+    if (!ref) return json({ error: "Inválido." }, 400);
+    if (b.on) await env.DB.prepare(`INSERT OR IGNORE INTO favorites(user_id,kind,ref,created_at) VALUES(?,?,?,?)`).bind(me.id, kind, ref, Date.now()).run();
+    else await env.DB.prepare(`DELETE FROM favorites WHERE user_id=? AND kind=? AND ref=?`).bind(me.id, kind, ref).run();
+    return json({ ok: true });
+  }
+  if (p === "/api/conta" && m === "GET") {
+    const prof = await getProfile(env, me.id);
+    return json({ user: { id: me.id, username: me.username, role: me.role, name: prof.name || me.username } });
+  }
+
+  // Daqui pra baixo, só motorista
+  if (me.role === "passenger") return json({ error: "Área só para motoristas." }, 403);
+
+  // ---- Código da corrida
+  if (p === "/api/codigo" && m === "POST") {
+    const b = await body(req);
+    const prof = await getProfile(env, me.id);
+    const rc = { on: true, code: "", version: 1, ...(prof.rideCode || {}) };
+    if ("on" in b) rc.on = !!b.on;
+    if (b.novo) { rc.code = newCode(); rc.version++; }
+    if (b.code !== undefined) {
+      const c = digits(b.code);
+      if (!/^\d{4}$/.test(c)) return json({ error: "O código precisa ter 4 números." }, 400);
+      if (c !== rc.code) { rc.code = c; rc.version++; }
+    }
+    prof.rideCode = rc;
+    await saveProfile(env, me.id, prof);
+    return json({ ok: true, rideCode: rc });
+  }
+
+  // ---- Mapa, lugares, parceiros e postos
+  if (p === "/api/mapa" && m === "GET") {
+    return json({ lugares: await listPlaces(env, ["lugar", "parceiro", "posto"], me), city: cityOf(env), categorias: { lugar: LUGAR, parceiro: PARCEIRO }, fuels: FUELS, admin: me.role === "admin" });
+  }
+  if (p === "/api/lugar" && m === "POST") {
+    if (tooMany("lugar" + me.id, 30, 60 * 60 * 1000)) return json({ error: "Muitas marcações seguidas. Espere um pouco." }, 429);
+    const b = await body(req);
+    const kind = b.kind === "parceiro" ? "parceiro" : "lugar";
+    if (kind === "parceiro" && me.role !== "admin") return json({ error: "Só o administrador cadastra parceiros." }, 403);
+    const c = cleanPlace(env, b, kind, me.role === "admin");
+    if (c.error) return json({ error: c.error }, 400);
+    const now = Date.now();
+    if (b.id) {
+      const row = await env.DB.prepare(`SELECT * FROM places WHERE id=?`).bind(Number(b.id)).first();
+      if (!row || row.kind === "posto") return json({ error: "Lugar não encontrado." }, 404);
+      if (row.user_id !== me.id && me.role !== "admin") return json({ error: "Só quem marcou pode editar." }, 403);
+      const old = JSON.parse(row.data || "{}");
+      c.data.photoVersion = old.photoVersion || 0;
+      await env.DB.prepare(`UPDATE places SET category=?,name=?,lat=?,lng=?,data=?,updated_at=?,expires_at=? WHERE id=?`)
+        .bind(c.category, c.name, c.lat, c.lng, JSON.stringify(c.data), now, c.expires, row.id).run();
+      return json({ ok: true, id: row.id });
+    }
+    const res = await env.DB.prepare(`INSERT INTO places(kind,category,name,lat,lng,data,user_id,created_at,updated_at,expires_at) VALUES(?,?,?,?,?,?,?,?,?,?)`)
+      .bind(kind, c.category, c.name, c.lat, c.lng, JSON.stringify(c.data), me.id, now, now, c.expires).run();
+    return json({ ok: true, id: res.meta.last_row_id });
+  }
+  const pl = p.match(/^\/api\/lugar\/(\d+)\/(apagar|foto)$/);
+  if (pl && m === "POST") {
+    const row = await env.DB.prepare(`SELECT * FROM places WHERE id=?`).bind(Number(pl[1])).first();
+    if (!row || row.kind === "posto") return json({ error: "Lugar não encontrado." }, 404);
+    if (row.user_id !== me.id && me.role !== "admin") return json({ error: "Só quem marcou pode mudar." }, 403);
+    if (pl[2] === "apagar") {
+      await env.DB.prepare(`DELETE FROM places WHERE id=?`).bind(row.id).run();
+      await env.RESPOSTAS.delete(`img:p:${row.id}`);
+      return json({ ok: true });
+    }
+    const m64 = String((await body(req)).data || "").match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
+    if (!m64) return json({ error: "Imagem inválida." }, 400);
+    const bytes = Uint8Array.from(atob(m64[1]), (ch) => ch.charCodeAt(0));
+    if (bytes.length > 400_000) return json({ error: "Imagem grande demais." }, 413);
+    await env.RESPOSTAS.put(`img:p:${row.id}`, bytes);
+    const d = JSON.parse(row.data || "{}"); d.photoVersion = Date.now();
+    await env.DB.prepare(`UPDATE places SET data=? WHERE id=?`).bind(JSON.stringify(d), row.id).run();
+    return json({ ok: true, photo: `/img/p/${row.id}?v=${d.photoVersion}` });
+  }
+  const pp = p.match(/^\/api\/posto\/(\d+)\/preco$/);
+  if (pp && m === "POST") {
+    if (tooMany("preco" + me.id, 40, 60 * 60 * 1000)) return json({ error: "Muitas atualizações seguidas. Espere um pouco." }, 429);
+    const row = await env.DB.prepare(`SELECT id FROM places WHERE id=? AND kind='posto'`).bind(Number(pp[1])).first();
+    if (!row) return json({ error: "Posto não encontrado." }, 404);
+    const b = await body(req), now = Date.now(), stmts = [];
+    for (const fuel of FUELS) {
+      if (b[fuel] === undefined || b[fuel] === "" || b[fuel] === null) continue;
+      const cents = Math.round(Number(String(b[fuel]).replace(",", ".")) * 100);
+      if (!(cents >= 200 && cents <= 1500)) return json({ error: `Preço de ${fuel} parece errado.` }, 400);
+      stmts.push(env.DB.prepare(`INSERT INTO fuel_prices(place_id,fuel,cents,user_id,created_at) VALUES(?,?,?,?,?)`).bind(row.id, fuel, cents, me.id, now));
+    }
+    if (!stmts.length) return json({ error: "Coloque pelo menos um preço." }, 400);
+    await env.DB.batch(stmts);
+    return json({ ok: true });
+  }
+  if (p === "/api/admin/postos/importar" && m === "POST") {
+    if (me.role !== "admin") return json({ error: "Só o administrador." }, 403);
+    try { return json({ ok: true, total: await importFuelStations(env) }); }
+    catch (e) { console.error("importar postos", e.message); return json({ error: "O OpenStreetMap não respondeu. Tente de novo em alguns minutos." }, 502); }
+  }
+
   if (p === "/api/me" && m === "GET") {
     const prof = await getProfile(env, me.id);
+    if (!prof.rideCode || !prof.rideCode.code) {
+      prof.rideCode = { on: true, version: 1, ...(prof.rideCode || {}), code: newCode() };
+      await saveProfile(env, me.id, prof);
+    }
     const link = await getLink(env, me.id);
     const app = link?.app_id ? await getApp(env, link.app_id) : null;
     const pend = await env.DB.prepare(`SELECT COUNT(*) n FROM song_requests WHERE user_id=? AND done=0`).bind(me.id).first();
@@ -312,6 +491,7 @@ async function driverApi(req, env, url, p, me, secure) {
         ownerName: env.DRIVER_NAME || "o administrador",
       },
       pendingRequests: pend?.n || 0,
+      city: cityOf(env),
       feedbackCount: fb?.n || 0,
     });
   }
