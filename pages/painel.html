@@ -24,7 +24,7 @@
   --accent:#ffb347; --ink:#1b1206; --ok:#5fd39a; --err:#ff8a8a; --wa:#3ddc84; --wa-ink:#06210f;
   --display:"Big Shoulders Display","Arial Narrow",sans-serif;
   --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --nav:64px;
+  --nav:0px; --sheet:76px;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -112,12 +112,6 @@ main{max-width:560px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-rig
 .view{display:flex;flex-direction:column;gap:18px}
 .view>h2{margin-top:4px}
 
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border-top:1px solid var(--line);
-  padding:0 max(6px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(6px,env(safe-area-inset-left,0px))}
-nav.tabs button{position:relative;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--nav);color:var(--muted);font-size:12px;font-weight:700}
-nav.tabs button svg{width:24px;height:24px}
-nav.tabs button[aria-current=page]{color:var(--accent)}
-nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--accent);color:var(--ink);font-size:11px;font-weight:800;display:grid;place-items:center}
 
 /* Código da corrida */
 .code{display:flex;align-items:center;gap:16px}
@@ -156,6 +150,76 @@ nav.tabs .badge{position:absolute;top:8px;left:calc(50% + 6px);min-width:18px;he
 .cross svg{width:44px;height:44px;fill:var(--accent);stroke:#0c0e1a;stroke-width:1.5}
 .pickbar{position:absolute;left:12px;right:12px;bottom:16px;z-index:500;display:grid;grid-template-columns:1fr 1.6fr;gap:8px}
 .pickhint{position:absolute;left:50%;top:120px;transform:translateX(-50%);z-index:500;background:var(--fg);color:var(--bg);font-weight:700;border-radius:12px;padding:8px 14px;font-size:14px;white-space:nowrap}
+
+/* Tela inicial: mapa em tela cheia, como Uber e 99 */
+body.home .top,body.home .savebar{display:none}
+body.home{--nav:calc(var(--sheet) + 12px)}
+body.home #v-mapa{top:0;bottom:0}
+body.home .leaflet-bottom{bottom:calc(var(--sheet) + env(safe-area-inset-bottom,0px))}
+.hui{display:none}
+body.home .hui{display:grid}
+body.home .mbar{display:none;top:calc(76px + env(safe-area-inset-top,0px));background:none}
+body.home.layers .mbar{display:flex}
+.hfab{position:absolute;z-index:500;width:52px;height:52px;border-radius:16px;border:0;background:#15171d;color:var(--fg);place-items:center;padding:0;box-shadow:0 8px 18px -8px rgba(0,0,0,.9)}
+.hfab svg.i{width:26px;height:26px}
+.hmenu{left:14px;top:calc(14px + env(safe-area-inset-top,0px))}
+.hqr{right:14px;top:calc(14px + env(safe-area-inset-top,0px));border-radius:50%}
+.hpill{position:absolute;z-index:500;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);height:52px;border:0;border-radius:999px;background:#0b0c10;color:var(--fg);
+  padding:0 20px;grid-auto-flow:column;align-items:center;gap:8px;font-weight:700;box-shadow:0 8px 18px -8px rgba(0,0,0,.9);white-space:nowrap}
+.hpill b{font-family:var(--display);font-weight:900;font-size:30px;letter-spacing:.08em;color:var(--accent);font-variant-numeric:tabular-nums}
+.hpill.off b{color:var(--muted);font-size:18px;letter-spacing:0;font-family:var(--body)}
+.hpill small{color:var(--muted);font-size:13px}
+body.home .mfab,body.home .mmark{right:14px;left:auto;width:52px;height:52px;border-radius:50%;padding:0;border:0;background:#15171d;display:grid;place-items:center;min-height:0}
+body.home .mmark .lbl{display:none}
+body.home .mmark svg.i{width:24px;height:24px;color:var(--accent)}
+body.home #locBtn{bottom:calc(var(--sheet) + 16px + env(safe-area-inset-bottom,0px))}
+body.home #layersBtn{bottom:calc(var(--sheet) + 80px + env(safe-area-inset-bottom,0px))}
+body.home #markBtn{bottom:calc(var(--sheet) + 144px + env(safe-area-inset-bottom,0px))}
+body.home.layers #layersBtn{background:var(--accent);color:var(--ink)}
+.hsheet{position:absolute;left:0;right:0;bottom:0;z-index:510;background:#111215;border-radius:20px 20px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.55);
+  grid-template-columns:56px 1fr 56px;align-items:center;height:calc(var(--sheet) + env(safe-area-inset-bottom,0px));padding:8px 10px env(safe-area-inset-bottom,0px);overflow:hidden}
+.hsheet::before{content:"";position:absolute;left:50%;top:7px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#3a3d48}
+.hsbtn{position:relative;width:52px;height:52px;border:0;background:none;color:var(--fg);display:grid;place-items:center;padding:0}
+.hsbtn svg.i{width:28px;height:28px}
+.hsbtn[hidden]{display:grid!important;visibility:hidden}
+.hsbtn .badge{position:absolute;top:4px;right:2px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--accent);color:var(--ink);font-size:12px;font-weight:800;display:grid;place-items:center}
+.hstate{text-align:center;font-size:26px;font-weight:700;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hstate.off{color:var(--muted);font-size:20px}
+.hstate.busca{animation:piscar 1.6s ease-in-out infinite}
+.hstate.indo{color:var(--ok);font-size:20px}
+@keyframes piscar{0%,100%{opacity:1}50%{opacity:.35}}
+.hline{position:absolute;left:0;right:0;bottom:env(safe-area-inset-bottom,0px);height:3px;overflow:hidden;opacity:0}
+.hsheet.on .hline{opacity:1}
+.hline::after{content:"";position:absolute;top:0;bottom:0;width:30%;background:linear-gradient(90deg,transparent,#3fa0ff,transparent);animation:varrer 1.8s linear infinite}
+@keyframes varrer{from{left:-30%}to{left:100%}}
+.hgo{position:absolute;z-index:505;left:50%;bottom:calc(var(--sheet) + 18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:92px;height:92px;border-radius:50%;
+  border:4px solid rgba(12,14,26,.7);background:var(--accent);color:var(--ink);font-weight:900;font-size:16px;line-height:1.1;padding:0;place-items:center;text-align:center;
+  box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 60%,transparent),0 10px 24px -8px rgba(0,0,0,.9);animation:chamar 2.2s ease-out infinite}
+.hgo:active{transform:translateX(-50%) scale(.96)}
+@keyframes chamar{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent),0 10px 24px -8px rgba(0,0,0,.9)}70%,100%{box-shadow:0 0 0 22px transparent,0 10px 24px -8px rgba(0,0,0,.9)}}
+body.home.online .hgo{display:none}
+body.home.picking .hsheet,body.home.picking .hgo,body.home.picking #layersBtn{display:none}
+@media (prefers-reduced-motion:reduce){.hstate.busca,.hline::after,.hgo{animation:none}}
+
+/* Menu lateral */
+.mtop{border:0;background:none;color:var(--fg);width:40px;height:40px;display:grid;place-items:center;padding:0;margin-left:-6px}
+.mtop svg.i{width:26px;height:26px}
+.drawer{position:fixed;inset:0;z-index:85;background:rgba(4,5,10,.55);animation:fadein .2s ease-out}
+.drawer-box{position:absolute;left:0;top:0;bottom:0;width:min(86vw,340px);background:var(--bg);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow-y:auto;
+  padding:calc(20px + env(safe-area-inset-top,0px)) 0 calc(16px + env(safe-area-inset-bottom,0px));animation:entrar .22s ease-out}
+@keyframes entrar{from{transform:translateX(-100%)}to{transform:none}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.drawer-head{display:flex;align-items:center;gap:12px;padding:0 20px 18px;border-bottom:1px solid var(--line)}
+.drawer-head .ava{width:56px;height:56px;font-size:26px}
+.drawer-head b{display:block;font-size:20px;font-weight:800;line-height:1.2}
+.drawer-head a{color:var(--accent);font-size:14px;font-weight:700;text-decoration:none}
+.drawer nav{display:flex;flex-direction:column;padding:8px 0}
+.drawer nav button,.drawer nav a{display:flex;align-items:center;gap:16px;border:0;background:none;text-align:left;text-decoration:none;padding:15px 22px;font-size:18px;font-weight:700;color:var(--fg)}
+.drawer nav button:active,.drawer nav a:active{background:var(--panel)}
+.drawer nav svg.i{width:24px;height:24px;color:var(--muted)}
+.drawer nav [aria-current=page],.drawer nav [aria-current=page] svg.i{color:var(--accent)}
+.drawer nav .badge{margin-left:auto;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--accent);color:var(--ink);font-size:12px;font-weight:800;display:grid;place-items:center}
+.drawer .on-line{margin:auto 20px 0;padding-top:16px}
 
 /* Motoristas online no mapa */
 .dh-drv{display:flex;flex-direction:column;align-items:center;gap:3px;transform:translate(-50%,-100%);position:absolute;left:0;top:0;cursor:pointer}
@@ -345,6 +409,7 @@ details.howto ol b{color:var(--fg)}
 <!-- ================= App ================= -->
 <div id="app" hidden>
   <header class="top">
+    <button class="mtop" type="button" data-menu aria-label="Abrir menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <div class="ava" id="topAva" aria-hidden="true"></div>
     <div class="id"><b id="topName"></b><small id="topUser"></small></div>
     <a class="btn sm" id="seeProfile" href="#" target="_blank" rel="noopener">
@@ -489,7 +554,18 @@ details.howto ol b{color:var(--fg)}
       </div>
       <div class="cross" id="cross" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s-7-6.4-7-11.5a7 7 0 0 1 14 0C19 15.6 12 22 12 22z"/><circle cx="12" cy="10.5" r="2.4" fill="#0c0e1a"/></svg></div>
       <div class="pickhint" id="pickHint" hidden>Arraste o mapa até o lugar</div>
-      <button class="btn primary mmark" type="button" id="markBtn"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Marcar lugar</button>
+      <button class="btn primary mmark" type="button" id="markBtn" aria-label="Marcar lugar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Marcar lugar</span></button>
+      <button class="hfab hmenu hui" type="button" data-menu aria-label="Abrir menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+      <button class="hpill hui" type="button" id="codePill" aria-label="Código da corrida"><small>Código</small><b id="pillCode">----</b><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button class="hfab hqr hui" type="button" id="qrBtn" aria-label="Mostrar QR pro passageiro"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 20h.01M20 14v.01M14 20h.01"/></svg></button>
+      <button class="mfab hui" type="button" id="layersBtn" aria-label="O que mostrar no mapa" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
+      <button class="hgo hui" type="button" id="goBtn">Ficar<br>online</button>
+      <div class="hsheet hui" id="hsheet">
+        <button class="hsbtn" type="button" id="hsOff" aria-label="Ficar offline" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 7.3a8 8 0 1 0 11.4 0"/></svg></button>
+        <div class="hstate off" id="hsState" role="status" aria-live="polite">Você está offline</div>
+        <button class="hsbtn" type="button" id="hsCalls" aria-label="Chamados"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg><span class="badge" id="callBadge" hidden></span></button>
+        <div class="hline" aria-hidden="true"></div>
+      </div>
       <button class="mfab" type="button" id="locBtn" aria-label="Mostrar onde estou"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/></svg></button>
       <div class="pickbar" id="pickBar" hidden>
         <button class="btn" type="button" id="pickCancel">Cancelar</button>
@@ -558,12 +634,20 @@ details.howto ol b{color:var(--fg)}
     <button class="btn primary" type="button" id="save">Salvar</button>
   </div>
 
-  <nav class="tabs" aria-label="Seções do painel">
-    <button type="button" data-v="inicio" aria-current="page"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 20h.01M20 14v.01M14 20h.01"/></svg>Início</button>
-    <button type="button" data-v="pitstop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5l3 3 5.8-5.8a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>Pit Stop</button>
-    <button type="button" data-v="musica"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Música<span class="badge" id="reqBadge" hidden></span></button>
-    <button type="button" data-v="mais"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>Mais</button>
-  </nav>
+  <div class="drawer" id="drawer" hidden>
+    <div class="drawer-box" role="dialog" aria-modal="true" aria-label="Menu">
+      <div class="drawer-head"><div class="ava" id="drawAva" aria-hidden="true"></div><div><b id="drawName"></b><a id="drawProfile" href="#" target="_blank" rel="noopener">Ver meu perfil</a></div></div>
+      <nav aria-label="Seções do painel">
+        <button type="button" data-v="mapa"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5zM9 4v13M15 6.5v13"/></svg>Mapa</button>
+        <button type="button" data-v="inicio"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 20h.01M20 14v.01M14 20h.01"/></svg>Código, QR e chamados</button>
+        <button type="button" data-v="musica"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>Música<span class="badge" id="reqBadge" hidden></span></button>
+        <button type="button" data-v="pitstop"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5l3 3 5.8-5.8a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg>Pit Stop</button>
+        <button type="button" data-v="pagina"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Minha página</button>
+        <button type="button" data-v="perfil"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Meus dados</button>
+        <button type="button" data-v="mais"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Respostas e conta</button>
+      </nav>
+    </div>
+  </div>
 </div>
 
 <div class="qrfull" id="qrFull" hidden role="dialog" aria-modal="true" aria-labelledby="qrFullTitle">
@@ -667,7 +751,7 @@ details.howto ol b{color:var(--fg)}
       $("auth").hidden=true; $("app").hidden=false;
       renderAll(); renderOnline();
       try{ if(localStorage.getItem("online")==="1") startOnline(true); }catch(e){}
-      go(S.fresh?"perfil":(location.hash.slice(1).replace("pagina","")||"inicio"));
+      go(S.fresh?"perfil":(location.hash.slice(1).replace("pagina","")||"mapa"));
       if(S.fresh) toast("Conta criada! Complete seu perfil.");
       pollRequests(); setInterval(pollRequests,15000);
     });
@@ -681,6 +765,9 @@ details.howto ol b{color:var(--fg)}
     $("topName").textContent=p.name||u.username;
     $("topUser").textContent="@"+u.username+(u.role==="admin"?" · administrador":"");
     $("seeProfile").href="/"+u.username;
+    $("drawAva").outerHTML=avatarHTML("","drawAva");
+    $("drawName").textContent=p.name||u.username;
+    $("drawProfile").href="/"+u.username;
   }
 
   function drawQR(el,link){
@@ -897,6 +984,8 @@ details.howto ol b{color:var(--fg)}
       seenCalls=list.map(function(c){ return c.id; });
       var vis=list.filter(function(c){ return c.status==="novo"||c.status==="aceito"; });
       $("callsBox").hidden=!vis.length;
+      $("callBadge").hidden=!vis.length; $("callBadge").textContent=vis.length;
+      HC.indo=vis.filter(function(c){ return c.status==="aceito"; })[0]||null; renderHomeBar();
       var me=S.saved.name||S.me.user.username;
       $("callList").innerHTML=vis.map(function(c){
         var fone=String(c.phone||"").replace(/^55(?=\d{10,11}$)/,""), wa="https://wa.me/55"+fone+"?text="+encodeURIComponent("Oi "+c.name+", aqui é "+me+" do Driver Hub. "+(c.status==="aceito"?"Tô indo te buscar!":"Vi seu chamado."));
@@ -1103,6 +1192,8 @@ details.howto ol b{color:var(--fg)}
     $("codeDigits").textContent=r.code||"----";
     $("codeBox").classList.toggle("off",!r.on);
     $("codeSw").setAttribute("aria-checked",String(!!r.on));
+    $("pillCode").textContent=r.on?(r.code||"----"):"desligado";
+    $("codePill").classList.toggle("off",!r.on);
     $("codeHint").textContent=r.on?"Fale esse código pro passageiro, ou mostre o QR em tela cheia, que já leva o código.":"Desligado: qualquer pessoa com o link pode mexer na música.";
   }
   function saveCode(data,ok){
@@ -1174,7 +1265,25 @@ details.howto ol b{color:var(--fg)}
       ?(NATIVE?"Continua mandando com a tela apagada e a Uber aberta. A notificação “Driver Hub online” fica fixa enquanto estiver ligado.":"No navegador, só manda enquanto o Driver Hub estiver aberto na tela.")
       :"Os motoristas do Driver Hub veem onde você está no mapa do Pit Stop. Passageiros não veem.";
     $("apkBtn").hidden=NATIVE||!/Android/i.test(navigator.userAgent);
+    renderHomeBar();
   }
+  // Faixa de baixo da tela inicial: offline, procurando (piscando) ou indo buscar alguém
+  var HC={indo:null};
+  function renderHomeBar(){
+    var st=$("hsState"), on=ON.on;
+    document.body.classList.toggle("online",on);
+    $("hsheet").classList.toggle("on",on&&!HC.indo);
+    $("hsOff").hidden=!on;
+    st.className="hstate "+(HC.indo?"indo":on?"busca":"off");
+    st.textContent=HC.indo?"Indo buscar "+HC.indo.name:on?"Procurando":"Você está offline";
+  }
+  $("goBtn").addEventListener("click",function(){ startOnline(); });
+  $("hsOff").addEventListener("click",function(){ if(confirm("Ficar offline? Você some do mapa dos motoristas.")) stopOnline(); });
+  $("hsCalls").addEventListener("click",function(){ go("inicio"); });
+  $("hsState").addEventListener("click",function(){ if(HC.indo) go("inicio"); });
+  $("codePill").addEventListener("click",function(){ go("inicio"); });
+  $("qrBtn").addEventListener("click",function(){ $("qrBig").click(); });
+  $("layersBtn").addEventListener("click",function(){ var on=document.body.classList.toggle("layers"); this.setAttribute("aria-pressed",String(on)); });
   $("onlineSw").addEventListener("click",function(){ if(ON.on) stopOnline(); else startOnline(); });
 
   // ================= Pit Stop =================
@@ -1248,6 +1357,8 @@ details.howto ol b{color:var(--fg)}
     if(!dmap){
       dmap=DHMap.create($("dmap"),PS.city||S.me.city,{zoom:14}); dlayer=L.layerGroup().addTo(dmap);
       renderLayerRow(); renderFuelRows();
+      // Online: abre já centrado em você, como nos apps de corrida
+      if(ON.on) locate(function(){ meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); });
     }
     setTimeout(function(){ dmap.invalidateSize(); },60);
     loadPS().then(function(){ drawMap(); if(focus){ dmap.setView([focus.lat,focus.lng],17); openPlace(focus); } });
@@ -1277,9 +1388,10 @@ details.howto ol b{color:var(--fg)}
     picking=state; closeSheet();
     if(S.view!=="mapa"){ go("mapa"); }
     if(state.lat&&dmap) dmap.setView([state.lat,state.lng],17);
+    document.body.classList.add("picking");
     $("cross").hidden=false; $("pickHint").hidden=false; $("pickBar").hidden=false; $("markBtn").hidden=true; $("locBtn").hidden=true;
   }
-  function endPick(){ picking=null; $("cross").hidden=true; $("pickHint").hidden=true; $("pickBar").hidden=true; $("markBtn").hidden=false; $("locBtn").hidden=false; }
+  function endPick(){ picking=null; document.body.classList.remove("picking"); $("cross").hidden=true; $("pickHint").hidden=true; $("pickBar").hidden=true; $("markBtn").hidden=false; $("locBtn").hidden=false; }
   $("markBtn").addEventListener("click",function(){ startPick({kind:"lugar"}); });
   $("pickCancel").addEventListener("click",function(){ var st=picking; endPick(); if(st&&st.id) openForm(st); });
   $("pickOk").addEventListener("click",function(){ var c=dmap.getCenter(), st=picking; endPick(); st.lat=c.lat; st.lng=c.lng; openForm(st); });
@@ -1463,8 +1575,9 @@ details.howto ol b{color:var(--fg)}
     if(!$("v-"+v)) v="inicio";
     S.view=v;
     document.querySelectorAll(".view[id^=v-]").forEach(function(el){ el.hidden=el.id!=="v-"+v; });
-    var tab={perfil:"mais",mapa:"pitstop",postos:"pitstop",indicacoes:"pitstop",lugares:"pitstop"}[v]||v;
-    document.querySelectorAll("nav.tabs button").forEach(function(b){ if(b.dataset.v===tab) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+    closeMenu(); document.body.classList.toggle("home",v==="mapa");
+    var tab={postos:"pitstop",indicacoes:"pitstop",lugares:"pitstop"}[v]||v;
+    document.querySelectorAll("#drawer nav button").forEach(function(b){ if(b.dataset.v===tab) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
     history.replaceState(null,"","#"+v); window.scrollTo(0,0);
     if(v!=="mapa"&&picking) endPick();
     if(v==="musica") pollRequests();
@@ -1474,7 +1587,11 @@ details.howto ol b{color:var(--fg)}
     if(v==="indicacoes"){ renderInd(); loadPS(); }
     if(v==="lugares"){ renderLug(); loadPS(); }
   }
-  document.querySelector("nav.tabs").addEventListener("click",function(e){ var b=e.target.closest("button"); if(b) go(b.dataset.v); });
+  // Menu lateral (☰), no lugar da barra de abas
+  function closeMenu(){ $("drawer").hidden=true; }
+  document.addEventListener("click",function(e){ if(e.target.closest("[data-menu]")) $("drawer").hidden=false; });
+  $("drawer").addEventListener("click",function(e){ var b=e.target.closest("nav button"); if(b){ go(b.dataset.v); return; } if(!e.target.closest(".drawer-box")) closeMenu(); });
+  document.addEventListener("keydown",function(e){ if(e.key==="Escape") closeMenu(); });
 
   boot();
 })();
