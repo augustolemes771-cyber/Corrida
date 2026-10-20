@@ -26,6 +26,18 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci || npm install
+      # A versão vai no user agent (DriverHubApp/N): o site compara com versao.json e oferece a atualização
+      - name: Versão no app
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          c = json.load(open("capacitor.config.json"))
+          c["appendUserAgent"] = "DriverHubApp/" + os.environ["VERSION_CODE"]
+          json.dump(c, open("capacitor.config.json", "w"), indent=2)
+          json.dump({"versionCode": int(os.environ["VERSION_CODE"])}, open("versao.json", "w"))
+          PY
       - run: npx cap sync android
       - name: Montar APK
         working-directory: android-app/android
@@ -63,3 +75,4 @@ jobs:
           files: |
             android-app/driver-hub.apk
             android-app/driver-hub-local.apk
+            android-app/versao.json

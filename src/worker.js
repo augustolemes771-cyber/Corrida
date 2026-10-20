@@ -42,6 +42,19 @@ const fare = (km) => Math.max(MIN_PRICE, Math.round(km * PRICE_PER_KM));
 const APP_DRIVERS_ONLINE = `SELECT COUNT(*) n FROM driver_locations l LEFT JOIN profiles p ON p.user_id=l.user_id
   WHERE l.online=1 AND l.at>? AND COALESCE(json_extract(p.data,'$.rideMode'),'app')<>'particular'`;
 
+// O GitHub Actions publica versao.json junto do APK. Guardado 10 min na memória do Worker.
+const APK_BASE = "https://github.com/augustolemes771-cyber/Corrida/releases/download/android/";
+let apkCache = { at: 0, data: { android: 0 } };
+async function appVersion() {
+  if (Date.now() - apkCache.at < 10 * 60 * 1000) return apkCache.data;
+  try {
+    const r = await fetch(APK_BASE + "versao.json", { signal: AbortSignal.timeout(5000) });
+    const j = await r.json();
+    if (Number(j.versionCode) > 0) apkCache = { at: Date.now(), data: { android: Number(j.versionCode), url: APK_BASE + "driver-hub.apk" } };
+  } catch {}
+  return apkCache.data;
+}
+
 // Distância de carro em km (OSRM). Sem resposta, linha reta x 1,3.
 async function routeKm(a, b) {
   try {
@@ -155,6 +168,9 @@ async function route(req, env) {
     const list = (await listPlaces(env, ["lugar"], null)).filter((x) => LUGAR[x.category]?.passenger);
     return json({ lugares: list, city: cityOf(env), categorias: LUGAR }, 200, { "cache-control": "public, max-age=30" });
   }
+
+  // ---------- Versão mais nova do app Android (pro aviso de atualização) ----------
+  if (p === "/api/app-versao" && m === "GET") return json(await appVersion(), 200, { "cache-control": "public, max-age=300" });
 
   // ---------- Chamado aberto (passageiro chama qualquer motorista online) ----------
   if (p === "/api/preco" && m === "POST") {
