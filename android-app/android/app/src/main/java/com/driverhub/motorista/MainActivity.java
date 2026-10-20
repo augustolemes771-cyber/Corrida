@@ -1,6 +1,7 @@
 package com.driverhub.motorista;
 
 import android.os.Bundle;
+import android.view.WindowManager;
 import android.webkit.WebView;
 
 import androidx.activity.OnBackPressedCallback;
@@ -13,6 +14,10 @@ public class MainActivity extends BridgeActivity {
         // Modo online nativo (localização em segundo plano)
         registerPlugin(RastreioPlugin.class);
         super.onCreate(savedInstanceState);
+
+        // Tela sempre acesa enquanto o app estiver aberto na frente (no carro, de olho nos chamados).
+        // Minimizado, o Android volta a apagar normalmente.
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         // Botão voltar: a página decide primeiro (window.dhVoltar).
         // 1 = já tratou (fechou menu ou voltou de aba); 2 = está na tela inicial, minimiza;
