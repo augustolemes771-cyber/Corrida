@@ -4,10 +4,14 @@
   "webDir": "www",
   "server": {
     "url": "https://corrida.augusto7.workers.dev/painel",
-    "allowNavigation": ["corrida.augusto7.workers.dev"],
+    "allowNavigation": [
+      "corrida.augusto7.workers.dev"
+    ],
     "errorPath": "offline.html"
   },
   "android": {
-    "backgroundColor": "#0c0e1a"
-  }
+    "backgroundColor": "#0c0e1a",
+    "webContentsDebuggingEnabled": true
+  },
+  "loggingBehavior": "production"
 }

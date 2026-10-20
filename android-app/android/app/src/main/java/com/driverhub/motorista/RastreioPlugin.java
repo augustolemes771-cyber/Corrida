@@ -28,6 +28,7 @@ public class RastreioPlugin extends Plugin {
 
     @PluginMethod
     public void iniciar(PluginCall call) {
+        android.util.Log.i(RastreioService.TAG, "iniciar: location=" + getPermissionState("location") + " notifications=" + getPermissionState("notifications"));
         if (getPermissionState("location") != PermissionState.GRANTED) {
             requestPermissionForAliases(new String[]{"location", "notifications"}, call, "depoisDaPermissao");
             return;
@@ -47,6 +48,7 @@ public class RastreioPlugin extends Plugin {
     }
 
     private void ligar(PluginCall call) {
+        android.util.Log.i(RastreioService.TAG, "ligar serviço");
         String url = call.getString("url");
         if (url == null) {
             call.reject("Faltou o endereço do servidor.");
