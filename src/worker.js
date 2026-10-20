@@ -6,7 +6,7 @@ import REDE from "../pages/rede.html";
 import APP from "../pages/app.html";
 import { json, htmlResponse, notice, esc, cut, digits, tooMany, ip, body, validUsername } from "./util.js";
 import { ensureDb, getUserByName, getProfile, saveProfile, ownerWhatsapp } from "./db.js";
-import { hashPassword, checkPassword, createSession, clearCookie, currentUser, endSession, sameOrigin } from "./auth.js";
+import { hashPassword, checkPassword, createSession, newSessionToken, sessionCookie, tokenFrom, userByToken, clearCookie, currentUser, endSession, sameOrigin } from "./auth.js";
 import { mergeProfile, publicProfile, defaultProfile, TAGS } from "./profile.js";
 import {
   SCOPES, getApp, getLink, appsWithUsage, freeSlotsLeft, requestSlot, setLink, removeLink,
@@ -65,43 +65,11 @@ async function route(req, env) {
   }
 
   // ---------- Conta ----------
-  if (p === "/api/cadastro" && m === "POST") {
+  if ((p === "/api/cadastro" || p === "/api/passageiro/cadastro") && m === "POST") {
     if (tooMany("signup" + ip(req), 20, 60 * 60 * 1000)) return json({ error: "Muitos cadastros seguidos. Tente mais tarde." }, 429);
-    const b = await body(req);
-    const username = cut(b.username, 20).toLowerCase().replace(/^@/, "");
-    const password = String(b.password || "");
-    const name = cut(b.name, 40);
-    const whatsapp = digits(b.whatsapp);
-    if (!validUsername(username)) return json({ error: "Usuário precisa ter de 3 a 20 letras minúsculas, números, ponto ou _." , field: "username" }, 400);
-    if (password.length < 6) return json({ error: "A senha precisa ter pelo menos 6 caracteres.", field: "password" }, 400);
-    if (!name) return json({ error: "Coloque seu nome.", field: "name" }, 400);
-    if (whatsapp.length < 10) return json({ error: "Coloque seu WhatsApp com DDD.", field: "whatsapp" }, 400);
-    if (await getUserByName(env, username)) return json({ error: "Esse usuário já existe. Escolha outro.", field: "username" }, 409);
-    const res = await env.DB.prepare(`INSERT OR IGNORE INTO users(username,pass,role,created_at) VALUES(?,?,'driver',?)`)
-      .bind(username, await hashPassword(password), Date.now()).run();
-    if (!res.meta.changes) return json({ error: "Esse usuário já existe. Escolha outro.", field: "username" }, 409);
-    const id = res.meta.last_row_id;
-    const wa = whatsapp.length <= 11 ? "55" + whatsapp : whatsapp;
-    const prof = defaultProfile({ name, whatsapp: wa });
-    prof.waMsg = `Oi ${name.split(" ")[0]}, vim pelo QR da corrida!`;
-    await saveProfile(env, id, prof);
-    return json({ ok: true }, 200, { "set-cookie": await createSession(env, id, secure) });
-  }
-
-  if (p === "/api/passageiro/cadastro" && m === "POST") {
-    if (tooMany("signup" + ip(req), 20, 60 * 60 * 1000)) return json({ error: "Muitos cadastros seguidos. Tente mais tarde." }, 429);
-    const b = await body(req);
-    const username = cut(b.username, 20).toLowerCase().replace(/^@/, "");
-    const password = String(b.password || "");
-    const name = cut(b.name, 40);
-    if (!validUsername(username)) return json({ error: "Usuário precisa ter de 3 a 20 letras minúsculas, números, ponto ou _.", field: "username" }, 400);
-    if (password.length < 6) return json({ error: "A senha precisa ter pelo menos 6 caracteres.", field: "password" }, 400);
-    if (!name) return json({ error: "Coloque seu nome.", field: "name" }, 400);
-    const res = await env.DB.prepare(`INSERT OR IGNORE INTO users(username,pass,role,created_at) VALUES(?,?,'passenger',?)`)
-      .bind(username, await hashPassword(password), Date.now()).run();
-    if (!res.meta.changes) return json({ error: "Esse usuário já existe. Escolha outro.", field: "username" }, 409);
-    await saveProfile(env, res.meta.last_row_id, { name });
-    return json({ ok: true }, 200, { "set-cookie": await createSession(env, res.meta.last_row_id, secure) });
+    const r = await createAccount(env, await body(req), p === "/api/cadastro" ? "driver" : "passenger");
+    if (r.error) return json({ error: r.error, field: r.field }, r.status);
+    return json({ ok: true }, 200, { "set-cookie": await createSession(env, r.id, secure) });
   }
 
   if (p === "/api/entrar" && m === "POST") {
@@ -116,7 +84,17 @@ async function route(req, env) {
 
   if (p === "/api/sair" && m === "POST") {
     await endSession(env, req);
+    // Administrador mexendo na conta de alguém: sair volta pra conta dele
+    const admin = await impersonator(env, req);
+    if (admin) return backToAdmin(admin, secure, { ok: true, voltou: true });
     return json({ ok: true }, 200, { "set-cookie": clearCookie(secure) });
+  }
+
+  if (p === "/api/voltar-admin" && m === "POST") {
+    const admin = await impersonator(env, req);
+    if (!admin) return json({ error: "Você já está na sua conta." }, 400);
+    await endSession(env, req);
+    return backToAdmin(admin, secure, { ok: true });
   }
 
   // ---------- Imagens ----------
@@ -411,7 +389,7 @@ async function driverApi(req, env, url, p, me, secure) {
   }
   if (p === "/api/conta" && m === "GET") {
     const prof = await getProfile(env, me.id);
-    return json({ user: { id: me.id, username: me.username, role: me.role, name: prof.name || me.username } });
+    return json({ user: { id: me.id, username: me.username, role: me.role, name: prof.name || me.username }, admin: (await impersonator(env, req))?.username || null });
   }
 
   // Daqui pra baixo, só motorista
@@ -542,6 +520,7 @@ async function driverApi(req, env, url, p, me, secure) {
     const fb = await env.DB.prepare(`SELECT COUNT(*) n FROM feedback WHERE user_id=?`).bind(me.id).first();
     return json({
       user: { id: me.id, username: me.username, role: me.role },
+      admin: (await impersonator(env, req))?.username || null,
       profile: prof,
       tags: TAGS,
       spotify: {
@@ -675,14 +654,52 @@ async function driverApi(req, env, url, p, me, secure) {
   // ---- Área do dono
   if (p.startsWith("/api/admin/")) {
     if (me.role !== "admin") return json({ error: "Só o administrador." }, 403);
-    return adminApi(req, env, p);
+    return adminApi(req, env, p, me, secure);
   }
 
   return json({ error: "Não encontrado." }, 404);
 }
 
-async function adminApi(req, env, p) {
+async function adminApi(req, env, p, me, secure) {
   const m = req.method;
+  // ----- Contas: criar, entrar como, trocar senha, apagar -----
+  if (p === "/api/admin/conta" && m === "POST") {
+    const b = await body(req);
+    const r = await createAccount(env, b, b.role === "passenger" ? "passenger" : "driver");
+    return r.error ? json({ error: r.error, field: r.field }, r.status) : json({ ok: true, id: r.id });
+  }
+  const acc = p.match(/^\/api\/admin\/conta\/(\d+)$/);
+  if (acc && m === "POST") {
+    const b = await body(req);
+    const target = await env.DB.prepare(`SELECT id,username,role FROM users WHERE id=?`).bind(Number(acc[1])).first();
+    if (!target) return json({ error: "Conta não encontrada." }, 404);
+    if (b.action === "entrar") {
+      if (target.id === me.id) return json({ error: "Essa já é a sua conta." }, 400);
+      const res = json({ ok: true, role: target.role });
+      res.headers.append("set-cookie", sessionCookie(await newSessionToken(env, target.id), secure));
+      res.headers.append("set-cookie", sessionCookie(me.token, secure, "asid"));
+      return res;
+    }
+    if (b.action === "senha") {
+      const pass = String(b.password || "");
+      if (pass.length < 6) return json({ error: "A senha precisa ter pelo menos 6 caracteres." }, 400);
+      await env.DB.prepare(`UPDATE users SET pass=? WHERE id=?`).bind(await hashPassword(pass), target.id).run();
+      return json({ ok: true });
+    }
+    if (b.action === "apagar") {
+      if (target.role === "admin") return json({ error: "A conta de administrador não pode ser apagada." }, 409);
+      const id = target.id;
+      await env.DB.batch([
+        "DELETE FROM sessions WHERE user_id=?", "DELETE FROM profiles WHERE user_id=?", "DELETE FROM spotify_links WHERE user_id=?",
+        "DELETE FROM song_requests WHERE user_id=?", "DELETE FROM feedback WHERE user_id=?", "DELETE FROM favorites WHERE user_id=?",
+        "DELETE FROM driver_locations WHERE user_id=?", "DELETE FROM ride_calls WHERE driver_id=?", "DELETE FROM users WHERE id=?",
+      ].map((q) => env.DB.prepare(q).bind(id)));
+      await Promise.all(["avatar", "fundo"].map((k) => env.RESPOSTAS.delete(`img:${id}:${k}`)));
+      return json({ ok: true });
+    }
+    return json({ error: "Ação inválida." }, 400);
+  }
+
   if (p === "/api/admin/resumo" && m === "GET") {
     const apps = await appsWithUsage(env);
     const { results: links } = await env.DB.prepare(
@@ -754,6 +771,44 @@ async function adminApi(req, env, p) {
   }
 
   return json({ error: "Não encontrado." }, 404);
+}
+
+// Cria conta de motorista ou de passageiro. Devolve { id } ou { error, field, status }.
+async function createAccount(env, b, role) {
+  const username = cut(b.username, 20).toLowerCase().replace(/^@/, "");
+  const password = String(b.password || "");
+  const name = cut(b.name, 40);
+  const whatsapp = digits(b.whatsapp);
+  const fail = (error, field, status = 400) => ({ error, field, status });
+  if (!validUsername(username)) return fail("Usuário precisa ter de 3 a 20 letras minúsculas, números, ponto ou _.", "username");
+  if (password.length < 6) return fail("A senha precisa ter pelo menos 6 caracteres.", "password");
+  if (!name) return fail("Coloque seu nome.", "name");
+  if (role === "driver" && whatsapp.length < 10) return fail("Coloque seu WhatsApp com DDD.", "whatsapp");
+  if (await getUserByName(env, username)) return fail("Esse usuário já existe. Escolha outro.", "username", 409);
+  const res = await env.DB.prepare(`INSERT OR IGNORE INTO users(username,pass,role,created_at) VALUES(?,?,?,?)`)
+    .bind(username, await hashPassword(password), role, Date.now()).run();
+  if (!res.meta.changes) return fail("Esse usuário já existe. Escolha outro.", "username", 409);
+  const id = res.meta.last_row_id;
+  if (role === "driver") {
+    const wa = whatsapp.length <= 11 ? "55" + whatsapp : whatsapp;
+    const prof = defaultProfile({ name, whatsapp: wa });
+    prof.waMsg = `Oi ${name.split(" ")[0]}, vim pelo QR da corrida!`;
+    await saveProfile(env, id, prof);
+  } else await saveProfile(env, id, { name });
+  return { id };
+}
+
+// Quem é o administrador que entrou nesta conta (cookie asid), se houver
+async function impersonator(env, req) {
+  const admin = await userByToken(env, tokenFrom(req, "asid"));
+  return admin && admin.role === "admin" ? admin : null;
+}
+
+function backToAdmin(admin, secure, data) {
+  const res = json(data);
+  res.headers.append("set-cookie", sessionCookie(admin.token, secure));
+  res.headers.append("set-cookie", clearCookie(secure, "asid"));
+  return res;
 }
 
 async function feedbackCsv(env, me, all) {

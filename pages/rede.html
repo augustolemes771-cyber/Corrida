@@ -343,11 +343,20 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
   $("formIn").addEventListener("submit",function(e){ e.preventDefault(); $("inMsg").textContent="Entrando…"; $("inMsg").className="msg";
     call("POST","/api/entrar",{username:$("inUser").value,password:$("inPass").value}).then(function(x){
       if(x.ok) back(); else { $("inMsg").textContent=x.j.error||"Não deu certo."; $("inMsg").className="msg err"; } }); });
-  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(){ location.href=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()?"/app":"/conta"; }); });
+  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(x){ if(x.j&&x.j.voltou){ location.href="/painel"; return; } location.href=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()?"/app":"/conta"; }); });
 
   // ---------- Início ----------
   Promise.all([call("GET","/api/conta"),call("GET","/api/favoritos")]).then(function(r){
     if(r[0].ok) me=r[0].j.user; if(r[1].ok) favs=r[1].j.favoritos||[];
+    // Administrador dentro da conta deste passageiro
+    if(r[0].ok&&r[0].j.admin){
+      var bar=document.createElement("div");
+      bar.style.cssText="position:sticky;top:0;z-index:2000;display:flex;align-items:center;gap:10px;background:var(--accent);color:#1b1206;font-weight:700;font-size:14px;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px";
+      bar.innerHTML='<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span><button type="button" style="border:0;border-radius:999px;background:#1b1206;color:var(--accent);font:inherit;font-weight:800;padding:7px 12px">Voltar pra minha conta</button>';
+      bar.firstChild.textContent="Na conta de @"+me.username;
+      bar.lastChild.addEventListener("click",function(){ call("POST","/api/voltar-admin").then(function(){ location.href="/painel?c="+Date.now()+"#mais"; }); });
+      document.body.prepend(bar);
+    }
     if(view==="mapa") initMap(); else if(view==="conta") initAccount(); else initDrivers();
   });
 })();

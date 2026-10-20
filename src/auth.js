@@ -29,18 +29,29 @@ export async function checkPassword(password, stored) {
 const SESSION_DAYS = 60;
 
 export async function createSession(env, userId, secure) {
+  return sessionCookie(await newSessionToken(env, userId), secure);
+}
+
+export async function newSessionToken(env, userId) {
   const token = b64(crypto.getRandomValues(new Uint8Array(24))).replace(/[+/=]/g, (c) => ({ "+": "-", "/": "_", "=": "" })[c]);
   const expires = Date.now() + SESSION_DAYS * 864e5;
   await env.DB.prepare(`INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)`).bind(token, userId, expires).run();
-  return `sid=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}${secure ? "; Secure" : ""}`;
+  return token;
 }
 
-export const clearCookie = (secure) => `sid=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`;
+// sid = sessão em uso. asid = sessão do administrador guardada enquanto ele mexe na conta de outra pessoa.
+export const sessionCookie = (token, secure, name = "sid") =>
+  `${name}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}${secure ? "; Secure" : ""}`;
 
-const tokenFrom = (req) => (req.headers.get("cookie") || "").match(/(?:^|;\s*)sid=([A-Za-z0-9_-]+)/)?.[1];
+export const clearCookie = (secure, name = "sid") => `${name}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`;
+
+export const tokenFrom = (req, name = "sid") => (req.headers.get("cookie") || "").match(new RegExp(`(?:^|;\\s*)${name}=([A-Za-z0-9_-]+)`))?.[1];
 
 export async function currentUser(env, req) {
-  const token = tokenFrom(req);
+  return userByToken(env, tokenFrom(req));
+}
+
+export async function userByToken(env, token) {
   if (!token) return null;
   const row = await env.DB.prepare(
     `SELECT u.id,u.username,u.role,s.expires FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token=?`

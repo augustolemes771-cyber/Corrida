@@ -94,7 +94,7 @@ input:focus,textarea:focus,select:focus{border-color:var(--accent);outline:none}
 .brand svg{width:30px;height:30px;color:var(--accent)}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1.5px solid var(--line);border-radius:14px;background:var(--panel)}
 .seg button{border:0;background:transparent;border-radius:10px;padding:11px 0;font-weight:800;color:var(--muted)}
-.seg button[aria-selected=true]{background:var(--accent);color:var(--ink)}
+.seg button[aria-selected=true],.seg button[aria-pressed=true]{background:var(--accent);color:var(--ink)}
 .prefix{position:relative}
 .prefix span{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700}
 .prefix input{padding-left:32px}
@@ -200,6 +200,23 @@ body.home.layers #layersBtn{background:var(--accent);color:var(--ink)}
 body.home.online .hgo{display:none}
 body.home.picking .hsheet,body.home.picking .hgo,body.home.picking #layersBtn{display:none}
 @media (prefers-reduced-motion:reduce){.hstate.busca,.hline::after,.hgo{animation:none}}
+
+/* Administrador dentro da conta de outra pessoa */
+.asbar{position:fixed;left:0;right:0;top:0;z-index:95;display:flex;align-items:center;gap:10px;background:var(--accent);color:var(--ink);font-weight:700;font-size:14px;
+  padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px}
+.asbar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asbar button{border:0;border-radius:999px;background:var(--ink);color:var(--accent);font-weight:800;padding:7px 12px;white-space:nowrap}
+body.as{--ash:44px}
+body.as .top{top:var(--ash)}
+body.as #app{padding-top:var(--ash)}
+body.as.home #app{padding-top:0}
+body.as .hmenu,body.as .hqr,body.as .hpill{top:calc(var(--ash) + 14px + env(safe-area-inset-top,0px))}
+.accsearch{min-height:44px}
+.accrow{display:flex;align-items:center;gap:10px}
+.accrow .t{flex:1;min-width:0}
+.accrow b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.accrow small{display:block;color:var(--muted);font-size:13px}
+.accacts{display:flex;flex-wrap:wrap;gap:8px}
 
 /* Menu lateral */
 .mtop{border:0;background:none;color:var(--fg);width:40px;height:40px;display:grid;place-items:center;padding:0;margin-left:-6px}
@@ -656,6 +673,7 @@ details.howto ol b{color:var(--fg)}
   <p id="qrFullHint" style="margin:0;font-weight:700"></p>
   <button type="button" id="qrClose">Fechar</button>
 </div>
+<div class="asbar" id="asBar" hidden><span id="asTxt"></span><button type="button" id="asBack">Voltar pra minha conta</button></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <div class="dsheet" id="dsheet" hidden role="dialog" aria-modal="true" aria-labelledby="dsTitle">
   <div class="dsheet-box">
@@ -749,6 +767,8 @@ details.howto ol b{color:var(--fg)}
       if(!x.ok){ $("auth").hidden=false; $("app").hidden=true; if(location.pathname==="/cadastro") authMode(true); return; }
       S.me=x.j; S.tags=x.j.tags; S.saved=x.j.profile; S.draft=clone(S.saved);
       $("auth").hidden=true; $("app").hidden=false;
+      $("asBar").hidden=!x.j.admin; document.body.classList.toggle("as",!!x.j.admin);
+      if(x.j.admin) $("asTxt").textContent="Na conta de @"+x.j.user.username;
       renderAll(); renderOnline();
       try{ if(localStorage.getItem("online")==="1") startOnline(true); }catch(e){}
       go(S.fresh?"perfil":(location.hash.slice(1).replace("pagina","")||"mapa"));
@@ -1147,13 +1167,53 @@ details.howto ol b{color:var(--fg)}
           '<label class="f">Client ID<input name="client_id" autocapitalize="none" spellcheck="false"></label>'+
           '<label class="f">Client Secret<input name="client_secret" autocapitalize="none" spellcheck="false"></label>'+
           '<button class="btn primary" type="submit">Adicionar app</button><div class="msg" id="appMsg" role="status"></div></form></details>'+
-        '<h3>Motoristas</h3><div class="list">'+d.users.map(function(u){
-          return '<a class="item" href="/'+esc(u.username)+'" target="_blank" rel="noopener"><span class="t"><b>'+esc(u.name||u.username)+'</b><small>@'+esc(u.username)+(u.whatsapp?" · "+esc(fmtPhone(u.whatsapp)):"")+'</small></span><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--muted)"><path d="M9 5l7 7-7 7"/></svg></a>';
+        '<div class="row between"><h3>Contas</h3><span class="hint">'+d.users.length+' no total</span></div>'+
+        '<details class="howto block" id="newAcc"><summary>Criar conta pra alguém</summary><form id="accForm" class="stack" style="margin-top:12px" novalidate>'+
+          '<div class="seg" role="group" aria-label="Tipo de conta"><button type="button" data-role="driver" aria-pressed="true">Motorista</button><button type="button" data-role="passenger" aria-pressed="false">Passageiro</button></div>'+
+          '<label class="f">Nome<input name="name" maxlength="40" autocomplete="off"></label>'+
+          '<label class="f">Usuário <small>Vira o endereço do perfil.</small><div class="prefix"><span>@</span><input name="username" maxlength="20" autocapitalize="none" spellcheck="false" autocomplete="off"></div></label>'+
+          '<label class="f" data-wa>WhatsApp <small>Com DDD.</small><input name="whatsapp" type="tel" inputmode="tel" autocomplete="off"></label>'+
+          '<label class="f">Senha <small>Pelo menos 6 caracteres. Passe pra pessoa depois.</small><input name="password" autocomplete="off"></label>'+
+          '<button class="btn primary" type="submit">Criar conta</button><div class="msg" id="accMsg" role="status"></div></form></details>'+
+        '<input class="accsearch" id="accFind" type="search" placeholder="Buscar por nome ou @usuário" aria-label="Buscar conta" value="'+esc(accFind)+'">'+
+        '<div class="list" id="accList">'+d.users.map(function(u){
+          var tipo={admin:"Administrador",driver:"Motorista",passenger:"Passageiro"}[u.role]||u.role, mine=u.id===S.me.user.id;
+          return '<div class="slot" data-acc="'+u.id+'" data-role="'+u.role+'" data-find="'+esc((u.name+" "+u.username).toLowerCase())+'"><div class="accrow"><span class="t"><b>'+esc(u.name||u.username)+'</b><small>@'+esc(u.username)+' · '+tipo+(u.whatsapp?" · "+esc(fmtPhone(u.whatsapp)):"")+'</small></span>'+
+            (u.role!=="passenger"?'<a class="btn sm" href="/'+esc(u.username)+'" target="_blank" rel="noopener">Ver</a>':'')+'</div>'+
+            (mine?'':'<div class="accacts"><button class="btn sm primary" type="button" data-acct="entrar">Entrar e editar</button><button class="btn sm" type="button" data-acct="senha">Nova senha</button>'+
+              (u.role!=="admin"?'<button class="btn sm danger" type="button" data-acct="apagar">Apagar</button>':'')+'</div>')+'</div>';
         }).join("")+'</div>'+
         '<div class="row between"><h3>Respostas de todos</h3><a class="linkbtn" href="/respostas.csv?todos=1">Planilha</a></div><div class="list" id="admAns"></div>';
-      loadAnswers(true);
+      loadAnswers(true); filterAcc();
     });
   }
+  // ----- Contas (administrador) -----
+  var accFind="", accRole="driver";
+  function filterAcc(){ var q=accFind.trim().toLowerCase().replace(/^@/,""); document.querySelectorAll("#accList [data-acc]").forEach(function(el){ el.hidden=!!q&&el.dataset.find.indexOf(q)<0; }); }
+  $("adminArea").addEventListener("input",function(e){ if(e.target.id==="accFind"){ accFind=e.target.value; filterAcc(); } });
+  $("adminArea").addEventListener("click",function(e){
+    var r=e.target.closest("#accForm [data-role]");
+    if(r){ accRole=r.dataset.role; document.querySelectorAll("#accForm [data-role]").forEach(function(b){ b.setAttribute("aria-pressed",String(b===r)); }); $("accForm").querySelector("[data-wa]").hidden=accRole!=="driver"; return; }
+    var b=e.target.closest("[data-acct]"); if(!b) return;
+    var row=b.closest("[data-acc]"), id=row.dataset.acc, who=row.querySelector("small").textContent.split(" · ")[0], a=b.dataset.acct, data={action:a};
+    if(a==="senha"){ var np=prompt("Nova senha pra "+who+" (pelo menos 6 caracteres):"); if(np==null) return; data.password=np; }
+    if(a==="apagar"&&!confirm("Apagar a conta "+who+"? Some o perfil, as fotos, os pedidos e as respostas. Não dá pra desfazer.")) return;
+    b.disabled=true;
+    call("POST","/api/admin/conta/"+id,data).then(function(x){
+      b.disabled=false;
+      if(!x.ok){ toast(x.j.error||"Não deu certo."); return; }
+      if(a==="entrar"){ location.href=x.j.role==="passenger"?"/conta":"/painel?c="+Date.now(); return; }
+      toast(a==="senha"?"Senha trocada. Passe pra "+who+".":"Conta apagada"); if(a==="apagar") loadAdmin();
+    });
+  });
+  $("adminArea").addEventListener("submit",function(e){
+    if(e.target.id!=="accForm") return; e.preventDefault(); var f=e.target;
+    setMsg("accMsg","Criando…");
+    call("POST","/api/admin/conta",{role:accRole,name:f.name.value,username:f.username.value,whatsapp:f.whatsapp.value,password:f.password.value}).then(function(x){
+      if(!x.ok){ setMsg("accMsg",x.j.error||"Não deu pra criar.","err"); var el=f[x.j.field]; if(el) el.focus(); return; }
+      toast("Conta @"+f.username.value.toLowerCase().replace(/^@/,"")+" criada"); accFind=""; loadAdmin();
+    });
+  });
   $("adminArea").addEventListener("click",function(e){
     var cp=e.target.closest("[data-copy]"); if(cp){ copy(cp.dataset.copy,"E-mail copiado"); return; }
     var act=e.target.closest("[data-a]"), slot=e.target.closest("[data-u]");
@@ -1176,13 +1236,15 @@ details.howto ol b{color:var(--fg)}
     });
   });
 
+  $("asBack").addEventListener("click",function(){ call("POST","/api/voltar-admin").then(function(){ location.href="/painel?c="+Date.now()+"#mais"; }); });
+
   $("passForm").addEventListener("submit",function(e){
     e.preventDefault();
     call("POST","/api/senha",{atual:$("passOld").value,nova:$("passNew").value}).then(function(x){
       if(x.ok){ setMsg("passMsg","Senha trocada.","ok"); $("passOld").value=$("passNew").value=""; } else setMsg("passMsg",x.j.error||"Não deu certo.","err");
     });
   });
-  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(){ location.href=NATIVE?"/app":"/painel"; }); });
+  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(x){ location.href=NATIVE&&!x.j.voltou?"/app":"/painel"; }); });
 
 
   // ================= Código da corrida =================
