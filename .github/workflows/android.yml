@@ -43,7 +43,7 @@ jobs:
           python3 - <<'PY'
           import json, re
           c = json.load(open("capacitor.config.json"))
-          c["server"] = {"url": "http://localhost:8787/painel", "cleartext": True, "allowNavigation": ["localhost"]}
+          c["server"] = {"url": "http://localhost:8787/app", "cleartext": True, "allowNavigation": ["localhost"]}
           c["android"]["webContentsDebuggingEnabled"] = True
           c["loggingBehavior"] = "production"
           json.dump(c, open("capacitor.config.json", "w"), indent=2)

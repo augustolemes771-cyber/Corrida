@@ -3,7 +3,7 @@
   "appName": "Driver Hub",
   "webDir": "www",
   "server": {
-    "url": "https://corrida.augusto7.workers.dev/painel",
+    "url": "https://corrida.augusto7.workers.dev/app",
     "allowNavigation": [
       "corrida.augusto7.workers.dev"
     ],

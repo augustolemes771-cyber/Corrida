@@ -3,6 +3,7 @@
 import PERFIL from "../pages/perfil.html";
 import PAINEL from "../pages/painel.html";
 import REDE from "../pages/rede.html";
+import APP from "../pages/app.html";
 import { json, htmlResponse, notice, esc, cut, digits, tooMany, ip, body, validUsername } from "./util.js";
 import { ensureDb, getUserByName, getProfile, saveProfile, ownerWhatsapp } from "./db.js";
 import { hashPassword, checkPassword, createSession, clearCookie, currentUser, endSession, sameOrigin } from "./auth.js";
@@ -46,6 +47,12 @@ async function route(req, env) {
     const owner = env.OWNER_USERNAME && (await getUserByName(env, env.OWNER_USERNAME));
     if (owner) return renderProfile(env, owner, url);
     return Response.redirect(url.origin + "/painel", 302);
+  }
+  // Primeira tela do app Android: já logado vai direto pra sua área; senão escolhe motorista ou passageiro
+  if (p === "/app") {
+    const me = await currentUser(env, req);
+    if (me) return Response.redirect(url.origin + (me.role === "passenger" ? "/motoristas" : "/painel"), 302);
+    return htmlResponse(APP, 200, { "cache-control": "no-store" });
   }
   if (p === "/painel" || p === "/entrar" || p === "/cadastro") return htmlResponse(PAINEL, 200, { "cache-control": "no-store" });
   if (p === "/motoristas" || p === "/mapa" || p === "/conta")

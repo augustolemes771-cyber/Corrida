@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0c0e1a">
+<title>Driver Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800;900&family=Figtree:wght@400;500;600;700;800&display=swap">
+<style>
+/* Primeira tela do app Android: escolhe se entra como motorista ou passageiro. Mesmo visual do painel. */
+:root{
+  --bg:#0c0e1a; --panel:#151829; --line:#2a2f4a; --fg:#eef0fa; --muted:#9097b8;
+  --accent:#ffb347; --ink:#1b1206;
+  --display:"Big Shoulders Display","Arial Narrow",sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.45}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+svg.i{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+main{min-height:100dvh;max-width:480px;margin:0 auto;display:flex;flex-direction:column;justify-content:center;gap:28px;
+  padding:max(32px,env(safe-area-inset-top)) 20px max(32px,env(safe-area-inset-bottom))}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--accent)}
+.brand svg.i{width:22px;height:22px}
+h1{margin:0;font-family:var(--display);font-weight:900;font-size:clamp(44px,13vw,60px);line-height:.88;text-transform:uppercase}
+h1 em{font-style:normal;color:var(--accent)}
+.muted{color:var(--muted);margin:10px 0 0;font-size:17px}
+.pick{display:flex;flex-direction:column;gap:12px}
+.pick a{display:flex;align-items:center;gap:16px;padding:20px;border-radius:18px;background:var(--panel);border:1.5px solid var(--line);
+  text-decoration:none;color:var(--fg);-webkit-tap-highlight-color:transparent}
+.pick a:active{border-color:var(--accent)}
+.pick a svg.i{color:var(--accent)}
+.pick b{display:block;font-size:20px}
+.pick small{display:block;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <div class="brand"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><path d="M12 3v6.5M4.2 16.5l5.6-3.3M19.8 16.5l-5.6-3.3"/></svg>Driver Hub</div>
+    <h1 style="margin-top:18px">Como você<br><em>vai usar?</em></h1>
+    <p class="muted">Escolha uma vez. Para trocar depois, é só sair da conta.</p>
+  </div>
+  <nav class="pick" aria-label="Tipo de conta">
+    <a href="/painel"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14l-1.5-6.5A2 2 0 0 0 15.6 9H8.4a2 2 0 0 0-1.9 1.5zM3 17h18v3H3zM7 20v1.5M17 20v1.5M8.5 13.5h.01M15.5 13.5h.01"/></svg>
+      <span><b>Sou motorista</b><small>Meu perfil, música, Pix, mapa e chamados</small></span></a>
+    <a href="/conta"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+      <span><b>Sou passageiro</b><small>Achar motoristas, favoritos e mapa</small></span></a>
+  </nav>
+</main>
+</body>
+</html>

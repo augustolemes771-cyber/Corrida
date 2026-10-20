@@ -343,7 +343,7 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
   $("formIn").addEventListener("submit",function(e){ e.preventDefault(); $("inMsg").textContent="Entrando…"; $("inMsg").className="msg";
     call("POST","/api/entrar",{username:$("inUser").value,password:$("inPass").value}).then(function(x){
       if(x.ok) back(); else { $("inMsg").textContent=x.j.error||"Não deu certo."; $("inMsg").className="msg err"; } }); });
-  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(){ location.href="/conta"; }); });
+  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(){ location.href=window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()?"/app":"/conta"; }); });
 
   // ---------- Início ----------
   Promise.all([call("GET","/api/conta"),call("GET","/api/favoritos")]).then(function(r){

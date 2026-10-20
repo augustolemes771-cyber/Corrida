@@ -339,6 +339,7 @@ details.howto ol b{color:var(--fg)}
     <button class="btn primary block" type="submit">Criar meu perfil</button>
     <div class="msg" id="upMsg" role="status"></div>
   </form>
+  <p class="muted" style="text-align:center;margin:0">É passageiro? <a href="/conta" style="color:var(--accent);font-weight:700">Entre como passageiro</a></p>
 </div>
 
 <!-- ================= App ================= -->
@@ -1092,7 +1093,7 @@ details.howto ol b{color:var(--fg)}
       if(x.ok){ setMsg("passMsg","Senha trocada.","ok"); $("passOld").value=$("passNew").value=""; } else setMsg("passMsg",x.j.error||"Não deu certo.","err");
     });
   });
-  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(){ location.href="/painel"; }); });
+  $("logout").addEventListener("click",function(){ call("POST","/api/sair").then(function(){ location.href=NATIVE?"/app":"/painel"; }); });
 
 
   // ================= Código da corrida =================
