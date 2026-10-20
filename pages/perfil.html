@@ -1147,7 +1147,8 @@ body.editing .tabs{position:static}
   var CALL_KEY="chamado:"+P.username, callTimer=null;
   function initCall(){
     $("callBtn").hidden=false;
-    $("callBtn").addEventListener("click",openCall);
+    // Pedido igual aos apps: saída, destino, preço, acompanhamento no mapa e fotos (tela Solicitar)
+    $("callBtn").addEventListener("click",function(){ location.href="/solicitar?motorista="+encodeURIComponent(P.username); });
     $("sheetDone").addEventListener("click",function(){ $("sheet").hidden=true; });
     $("sheet").addEventListener("click",function(e){ if(e.target===this) this.hidden=true; });
     var saved=null; try{ saved=JSON.parse(localStorage.getItem(CALL_KEY)||"null"); }catch(e){}

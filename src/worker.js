@@ -191,14 +191,22 @@ async function route(req, env) {
     const from = point(b), to = point(b.dest);
     if (!from) return json({ error: "Não deu pra pegar o ponto de saída. Marque no mapa.", field: "from" }, 400);
     if (!to) return json({ error: "Escolha o destino.", field: "dest" }, 400);
-    const on = await env.DB.prepare(APP_DRIVERS_ONLINE).bind(Date.now() - ONLINE_MS).first();
-    if (!on.n) return json({ error: "Nenhum motorista online agora. Tente de novo daqui a pouco." }, 409);
+    // Pedido direto pra um motorista (veio da página dele) ou aberto pra todos os online
+    let driverId = 0, online = 0;
+    if (b.motorista) {
+      const d = await getUserByName(env, cut(b.motorista, 20).toLowerCase());
+      if (!d || d.role === "passenger") return json({ error: "Motorista não encontrado." }, 404);
+      driverId = d.id;
+    } else {
+      online = (await env.DB.prepare(APP_DRIVERS_ONLINE).bind(Date.now() - ONLINE_MS).first()).n;
+      if (!online) return json({ error: "Nenhum motorista online agora. Tente de novo daqui a pouco." }, 409);
+    }
     const km = await routeKm(from, to), price = fare(km);
     const token = crypto.randomUUID();
     const r = await env.DB.prepare(
-      `INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at,token,dest_lat,dest_lng,dest_name,pickup_name,km,price_cents) VALUES(0,?,?,?,?,?,?,?,?,?,?,?,?,?)`
-    ).bind(name, phone, note, from.lat, from.lng, Date.now(), token, to.lat, to.lng, cut(b.dest.name, 120), cut(b.from_name, 120), km, price).run();
-    return json({ ok: true, id: r.meta.last_row_id, token, online: on.n, km, price_cents: price });
+      `INSERT INTO ride_calls(driver_id,name,phone,note,lat,lng,created_at,token,dest_lat,dest_lng,dest_name,pickup_name,km,price_cents) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(driverId, name, phone, note, from.lat, from.lng, Date.now(), token, to.lat, to.lng, cut(b.dest.name, 120), cut(b.from_name, 120), km, price).run();
+    return json({ ok: true, id: r.meta.last_row_id, token, online, km, price_cents: price });
   }
   // Passageiro manda foto pro motorista (ponto de embarque, roupa, portão...)
   if (p === "/api/chamado/foto" && m === "POST") {

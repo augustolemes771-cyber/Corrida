@@ -127,6 +127,11 @@ input::placeholder{color:var(--muted);opacity:.8}
 .partner b{color:var(--fg)}
 .partner svg{color:var(--accent);width:24px;height:24px}
 .pickhint{position:absolute;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:500;background:var(--fg);color:var(--bg);font-weight:700;border-radius:12px;padding:8px 14px;font-size:14px;white-space:nowrap}
+.drvpick{display:flex;align-items:center;gap:12px;background:var(--panel2);border-radius:16px;padding:10px 12px}
+.drvpick .dava{width:44px;height:44px;font-size:20px}
+.drvpick b{display:block}
+.drvpick small{display:block;color:var(--muted);font-size:13px}
+.drvpick a{margin-left:auto;color:var(--accent);font-weight:700;font-size:14px;text-decoration:none;white-space:nowrap}
 /* Online/offline na lista */
 .live{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;margin-top:4px;color:var(--muted)}
 .live::before{content:"";width:9px;height:9px;border-radius:50%;background:#5c6280}
@@ -191,6 +196,7 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
   <div id="smap"><div class="pickhint" id="sHint" hidden></div></div>
   <form class="spanel" id="sForm" novalidate>
     <h2 id="h-sol">Pra onde vamos?</h2>
+    <div class="drvpick" id="sDrv" hidden></div>
     <div class="pts">
       <div class="pt"><i aria-hidden="true"></i><input id="sFrom" placeholder="Saída: pegando sua localização…" autocomplete="off" aria-label="Saída"><button type="button" data-pick="from" aria-pressed="false">No mapa</button></div>
       <div class="pt dest"><i aria-hidden="true"></i><input id="sTo" placeholder="Destino: rua, bairro ou lugar" autocomplete="off" aria-label="Destino"><button type="button" data-pick="to" aria-pressed="false">No mapa</button></div>
@@ -450,12 +456,21 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
   $("callWrap").addEventListener("click",function(e){ if(e.target===this) closeCall(); });
 
   // ---------- Solicitar corrida (R$ 3 por km, mínimo R$ 10, calculado no servidor pela rota de carro) ----------
-  var S2={from:null,to:null,pick:null,map:null,layer:null,fare:null,q:0,t:null};
+  var S2={from:null,to:null,pick:null,map:null,layer:null,fare:null,q:0,t:null,drv:null};
   function initSolicitar(){
     $("v-solicitar").hidden=false;
     var f=$("sForm"), saved={}; try{ saved=JSON.parse(localStorage.getItem("meusDados")||"{}"); }catch(e){}
     f.name.value=saved.name||(me&&me.name)||""; f.phone.value=saved.phone||"";
     S2.map=DHMap.create($("smap"),CITY,{zoom:14}); S2.layer=L.layerGroup().addTo(S2.map);
+    // Veio da página de um motorista: o pedido vai só pra ele
+    var mu=new URLSearchParams(location.search).get("motorista");
+    if(mu) call("GET","/api/publico/motoristas").then(function(x){
+      var d=(x.j.motoristas||[]).find(function(m){ return m.username===mu; }); if(!d) return;
+      S2.drv=d; $("h-sol").textContent="Corrida com "+d.name.split(" ")[0];
+      var ava=d.avatar?'<img class="dava" src="'+esc(d.avatar)+'" alt="">':'<div class="dava" aria-hidden="true">'+esc(d.name.charAt(0).toUpperCase())+'</div>';
+      $("sDrv").innerHTML=ava+'<div><b>'+esc(d.name)+'</b><small>'+(d.online?'<span class="live on">Online agora</span>':'Offline agora: ele recebe quando abrir o app')+'</small></div><a href="/solicitar">Pedir pra todos</a>';
+      $("sDrv").hidden=false; document.querySelector("#sForm .partner").hidden=true; drawRoute();
+    });
     S2.map.on("click",function(e){ var which=S2.pick||(S2.to?null:"to"); if(!which) return; setPoint(which,{lat:e.latlng.lat,lng:e.latlng.lng},null); });
     if(navigator.geolocation) navigator.geolocation.getCurrentPosition(function(p){ if(!S2.from) setPoint("from",{lat:p.coords.latitude,lng:p.coords.longitude},null); },
       function(){ $("sFrom").placeholder="Saída: toque em No mapa e marque"; },{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
@@ -502,7 +517,8 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     });
     call("POST","/api/preco",{from:a,to:b}).then(function(x){ if(S2.from!==a||S2.to!==b||!x.ok) return;
       S2.fare=x.j; $("sFare").hidden=false; $("sPrice").textContent=DHMap.money(x.j.price_cents);
-      $("sInfo").innerHTML=String(x.j.km.toFixed(1)).replace(".",",")+" km · "+(x.j.price_cents<=1000?"corrida mínima":"R$ 3,00 por km")+"<br>"+(x.j.online?x.j.online+(x.j.online===1?" motorista online":" motoristas online"):"Nenhum motorista online agora");
+      $("sInfo").innerHTML=String(x.j.km.toFixed(1)).replace(".",",")+" km · "+(x.j.price_cents<=1000?"corrida mínima":"R$ 3,00 por km")+"<br>"+
+        (S2.drv?"Só pra "+esc(S2.drv.name.split(" ")[0]):x.j.online?x.j.online+(x.j.online===1?" motorista online":" motoristas online"):"Nenhum motorista online agora");
       $("sGo").textContent="Solicitar corrida · "+DHMap.money(x.j.price_cents);
     });
   }
@@ -512,12 +528,12 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     if(!S2.to){ $("sMsg").className="msg err"; $("sMsg").textContent="Escolha o destino."; $("sTo").focus(); return; }
     try{ localStorage.setItem("meusDados",JSON.stringify({name:f.name.value,phone:f.phone.value})); }catch(_){}
     btn.disabled=true; $("sMsg").className="msg"; $("sMsg").textContent="Chamando…";
-    call("POST","/api/chamar",{name:f.name.value,phone:f.phone.value,note:f.note.value,lat:S2.from.lat,lng:S2.from.lng,from_name:S2.from.name,dest:S2.to}).then(function(x){
+    call("POST","/api/chamar",{name:f.name.value,phone:f.phone.value,note:f.note.value,lat:S2.from.lat,lng:S2.from.lng,from_name:S2.from.name,dest:S2.to,motorista:S2.drv&&S2.drv.username}).then(function(x){
       btn.disabled=false;
       if(!x.ok){ $("sMsg").className="msg err"; $("sMsg").textContent=x.j.error||"Não deu certo."; var el=f[x.j.field]; if(el&&el.focus) el.focus(); return; }
       $("sMsg").textContent=""; callPos=S2.from;
       CM.eta=""; CM.fit=false; CM.last=null; CM.fotoMsg="";
-      CALL={id:x.j.id,t:x.j.token,status:"novo",pickup:{lat:S2.from.lat,lng:S2.from.lng},online:x.j.online,price_cents:x.j.price_cents,km:x.j.km,dest_name:S2.to.name,at:Date.now()}; saveCall(); f.note.value="";
+      CALL={id:x.j.id,t:x.j.token,status:"novo",drvName:S2.drv?S2.drv.name.split(" ")[0]:"",pickup:{lat:S2.from.lat,lng:S2.from.lng},online:x.j.online,price_cents:x.j.price_cents,km:x.j.km,dest_name:S2.to.name,at:Date.now()}; saveCall(); f.note.value="";
       openCall();
     });
   }
@@ -526,8 +542,8 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     $("callMap").hidden=!(c.status==="aceito"&&d);
     var WA='<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/></svg>';
     var fare=c.price_cents?'<div class="fare"><div><b>'+DHMap.money(c.price_cents)+'</b></div><span>'+String((c.km||0).toFixed(1)).replace(".",",")+' km'+(c.dest_name?'<br>até '+E(c.dest_name):'')+'</span></div>':'';
-    if(c.status==="novo") box.innerHTML='<div class="radar" aria-hidden="true"><i></i><i></i><i></i><b>'+CAR+'</b></div><p class="searching">Procurando motorista…</p>'+fare+
-      '<p class="hint" style="text-align:center">Avisamos '+(c.online>1?c.online+" motoristas online":"o motorista online")+'. Fica de olho no WhatsApp.</p><button class="btn block" type="button" data-cancel>Cancelar chamado</button>';
+    if(c.status==="novo") box.innerHTML='<div class="radar" aria-hidden="true"><i></i><i></i><i></i><b>'+CAR+'</b></div><p class="searching">'+(c.drvName?"Esperando "+E(c.drvName)+" aceitar…":"Procurando motorista…")+'</p>'+fare+
+      '<p class="hint" style="text-align:center">Avisamos '+(c.drvName?E(c.drvName):c.online>1?c.online+" motoristas online":"o motorista online")+'. Fica de olho no WhatsApp.</p><button class="btn block" type="button" data-cancel>Cancelar chamado</button>';
     else if(c.status==="aceito"&&d){
       var ava=d.avatar?'<img class="dava" src="'+E(d.avatar)+'" alt="">':'<div class="dava" aria-hidden="true">'+E((d.name||"?").charAt(0).toUpperCase())+'</div>';
       var dist=d.pos&&callPos?DHMap.km(DHMap.distKm(callPos,d.pos)):"";
