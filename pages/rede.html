@@ -138,7 +138,7 @@ input::placeholder{color:var(--muted);opacity:.8}
   display:flex;flex-direction:column;gap:14px;animation:up .26s cubic-bezier(.2,.9,.3,1);position:relative}
 .callbox h2{font-size:30px}
 .callbox textarea{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;min-height:70px;resize:vertical}
-.callbox .x{position:absolute;right:12px;top:12px;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);display:grid;place-items:center;padding:0}
+.callbox .x{position:absolute;z-index:1200;right:12px;top:12px;width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);display:grid;place-items:center;padding:0}
 .gps{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:var(--muted)}
 .gps.ok{color:var(--ok)}
 .radar{position:relative;width:120px;height:120px;margin:10px auto}
@@ -154,6 +154,12 @@ input::placeholder{color:var(--muted);opacity:.8}
 .drvok b{display:block;font-size:19px}
 .drvok small{display:block;color:var(--muted)}
 .btn.wa{background:#3ddc84;border-color:#3ddc84;color:#06210f;font-weight:800}
+/* Acompanhar o motorista no mapa */
+#callMap{height:min(42vh,340px);border-radius:16px;overflow:hidden;background:#151a24;flex:none}
+.eta{font-size:20px;font-weight:800;color:var(--ok)}
+.of-pin{position:absolute;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;background:#1f6feb;border:3px solid #1c1c1e;display:grid;place-items:center;box-shadow:0 0 0 2px #1f6feb}
+.of-pin svg{width:18px;height:18px;fill:#fff}
+.of-end{position:absolute;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:3px;background:#fff;border:4px solid #1c1c1e;box-shadow:0 0 0 2px #fff}
 
 /* Conta */
 .benefits{display:flex;flex-direction:column;gap:2px;background:var(--line);border:1.5px solid var(--line);border-radius:18px;overflow:hidden}
@@ -279,7 +285,9 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
 <div class="callwrap" id="callWrap" hidden role="dialog" aria-modal="true" aria-labelledby="callTitle">
   <div class="callbox">
     <button type="button" class="x" id="callClose" aria-label="Fechar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    <div id="callMap" hidden></div>
     <div id="callState" class="stack" hidden aria-live="polite"></div>
+    <input type="file" id="callFoto" accept="image/*" hidden>
   </div>
 </div>
 
@@ -508,12 +516,14 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
       btn.disabled=false;
       if(!x.ok){ $("sMsg").className="msg err"; $("sMsg").textContent=x.j.error||"Não deu certo."; var el=f[x.j.field]; if(el&&el.focus) el.focus(); return; }
       $("sMsg").textContent=""; callPos=S2.from;
-      CALL={id:x.j.id,t:x.j.token,status:"novo",online:x.j.online,price_cents:x.j.price_cents,km:x.j.km,dest_name:S2.to.name,at:Date.now()}; saveCall(); f.note.value="";
+      CM.eta=""; CM.fit=false; CM.last=null; CM.fotoMsg="";
+      CALL={id:x.j.id,t:x.j.token,status:"novo",pickup:{lat:S2.from.lat,lng:S2.from.lng},online:x.j.online,price_cents:x.j.price_cents,km:x.j.km,dest_name:S2.to.name,at:Date.now()}; saveCall(); f.note.value="";
       openCall();
     });
   }
   function showCallState(){
     var box=$("callState"); box.hidden=false; var c=CALL, d=c.driver, E=esc;
+    $("callMap").hidden=!(c.status==="aceito"&&d);
     var WA='<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/></svg>';
     var fare=c.price_cents?'<div class="fare"><div><b>'+DHMap.money(c.price_cents)+'</b></div><span>'+String((c.km||0).toFixed(1)).replace(".",",")+' km'+(c.dest_name?'<br>até '+E(c.dest_name):'')+'</span></div>':'';
     if(c.status==="novo") box.innerHTML='<div class="radar" aria-hidden="true"><i></i><i></i><i></i><b>'+CAR+'</b></div><p class="searching">Procurando motorista…</p>'+fare+
@@ -521,9 +531,13 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     else if(c.status==="aceito"&&d){
       var ava=d.avatar?'<img class="dava" src="'+E(d.avatar)+'" alt="">':'<div class="dava" aria-hidden="true">'+E((d.name||"?").charAt(0).toUpperCase())+'</div>';
       var dist=d.pos&&callPos?DHMap.km(DHMap.distKm(callPos,d.pos)):"";
-      box.innerHTML='<h2 style="color:var(--ok)">Motorista a caminho</h2><div class="drvok">'+ava+'<div><b>'+E(d.name)+'</b><small>'+E(d.car||"@"+d.username)+(dist?" · a "+dist:"")+'</small></div></div>'+fare+
+      box.innerHTML='<h2 style="color:var(--ok)">Motorista a caminho</h2>'+(CM.eta?'<p class="eta">'+E(CM.eta)+'</p>':'')+
+        '<div class="drvok">'+ava+'<div><b>'+E(d.name)+'</b><small>'+E(d.car||"@"+d.username)+(dist?" · a "+dist:"")+'</small></div></div>'+fare+
+        '<button class="btn primary block" type="button" data-foto><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>Mandar foto pro motorista</button>'+
+        '<p class="msg'+(CM.fotoErr?' err':' ok')+'" style="text-align:center">'+E(CM.fotoMsg||(c.fotos?(c.fotos===1?"1 foto enviada":c.fotos+" fotos enviadas")+". O motorista vê na hora.":"Mande uma foto do lugar, do portão ou da sua roupa pra ele te achar."))+'</p>'+
         (d.whatsapp?'<a class="btn wa block" href="https://wa.me/'+E(d.whatsapp)+'?text='+encodeURIComponent("Oi "+d.name+", sou eu que chamei pelo Driver Hub!")+'" target="_blank" rel="noopener">'+WA+'Falar no WhatsApp</a>':'')+
         '<a class="btn block" href="/'+E(d.username)+'#perfil">Ver página do motorista</a><button class="btn block" type="button" data-cancel style="color:var(--err)">Cancelar</button>';
+      drawCallMap();
     } else {
       var msg={expirou:["Ninguém aceitou a tempo","Os motoristas podem estar ocupados. Tente de novo."],concluido:["Corrida concluída","Valeu por usar o Driver Hub!"],recusado:["Chamado recusado","Tente de novo."]}[c.status]||["Chamado encerrado",""];
       box.innerHTML='<h2>'+msg[0]+'</h2><p class="hint">'+msg[1]+'</p><button class="btn primary block" type="button" data-again>Chamar de novo</button>';
@@ -535,13 +549,57 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
     call("GET","/api/chamado?id="+CALL.id+"&t="+encodeURIComponent(CALL.t)).then(function(x){
       if(!CALL) return;
       if(x.ok){ var was=CALL.status; CALL.status=x.j.status==="sumiu"?"cancelado":x.j.status; CALL.driver=x.j.driver||null;
-        if(x.j.price_cents){ CALL.price_cents=x.j.price_cents; CALL.km=x.j.km; CALL.dest_name=x.j.dest_name; } saveCall();
+        if(x.j.price_cents){ CALL.price_cents=x.j.price_cents; CALL.km=x.j.km; CALL.dest_name=x.j.dest_name; }
+        CALL.pickup=x.j.pickup||CALL.pickup||null; CALL.dest=x.j.dest||null; CALL.fotos=x.j.fotos||0; saveCall();
         if(was==="novo"&&CALL.status==="aceito"){ try{ navigator.vibrate&&navigator.vibrate([200,100,200]); }catch(e){} }
         showCallState(); }
-      if(CALL&&(CALL.status==="novo"||CALL.status==="aceito")) callTimer=setTimeout(pollCall,CALL.status==="novo"?4000:10000);
+      if(CALL&&(CALL.status==="novo"||CALL.status==="aceito")) callTimer=setTimeout(pollCall,CALL.status==="novo"?4000:5000);
     });
   }
+  // Mapa do passageiro: carro do motorista, ponto de embarque e a rota entre os dois
+  var CM={map:null,layer:null,eta:"",last:null,at:0,fit:false,fotoMsg:"",fotoErr:false};
+  function drawCallMap(){
+    var c=CALL, d=c&&c.driver; if(!d||typeof L==="undefined") return;
+    if(!CM.map){ CM.map=DHMap.create($("callMap"),CITY,{zoom:15}); CM.layer=L.layerGroup().addTo(CM.map); }
+    setTimeout(function(){ CM.map.invalidateSize(); },60);
+    var pick=c.pickup||callPos, pos=d.pos;
+    // Redesenha a rota só se o carro andou ou a cada 30 s
+    if(pos&&CM.last&&DHMap.distKm(CM.last,pos)<0.03&&Date.now()-CM.at<30000) return;
+    CM.last=pos; CM.at=Date.now();
+    CM.layer.clearLayers();
+    if(pick) L.marker([pick.lat,pick.lng],{zIndexOffset:900,icon:L.divIcon({className:"",iconSize:[0,0],html:'<div class="of-pin"><svg viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="4"/><path d="M4 21a8 8 0 0 1 16 0z"/></svg></div>'})}).addTo(CM.layer);
+    if(c.dest) L.marker([c.dest.lat,c.dest.lng],{icon:L.divIcon({className:"",iconSize:[0,0],html:'<div class="of-end"></div>'})}).addTo(CM.layer);
+    if(!pos){ CM.eta="Esperando a localização do motorista"; if(pick) CM.map.setView([pick.lat,pick.lng],15); return; }
+    DHMap.carMarker(pos.lat,pos.lng).addTo(CM.layer);
+    if(!pick){ CM.map.setView([pos.lat,pos.lng],15); return; }
+    DHMap.route(pos,pick).then(function(r){
+      L.polyline(r.coords,{color:"#1c1c1e",weight:9,opacity:.9}).addTo(CM.layer); L.polyline(r.coords,{color:"#d9d9dc",weight:5}).addTo(CM.layer);
+      CM.eta=r.km<0.08?"O motorista chegou!":"Chega em "+r.min+" min · "+r.km.toFixed(1).replace(".",",")+" km";
+      var el=$("callState").querySelector(".eta"); if(el) el.textContent=CM.eta; else showCallState();
+      if(!CM.fit){ CM.fit=true; CM.map.fitBounds(L.latLngBounds(r.coords),{padding:[30,30],maxZoom:17}); }
+    });
+  }
+  // Foto pro motorista: reduz no celular antes de mandar
+  function reduzir(file){
+    return new Promise(function(ok,fail){
+      var img=new Image(), url=URL.createObjectURL(file);
+      img.onload=function(){ var r=Math.min(1,1280/Math.max(img.naturalWidth,img.naturalHeight)), c=document.createElement("canvas");
+        c.width=Math.round(img.naturalWidth*r); c.height=Math.round(img.naturalHeight*r); c.getContext("2d").drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url); ok(c.toDataURL("image/jpeg",.75)); };
+      img.onerror=fail; img.src=url;
+    });
+  }
+  $("callFoto").addEventListener("change",function(){
+    var f=this.files&&this.files[0]; this.value=""; if(!f||!CALL) return;
+    CM.fotoMsg="Enviando foto…"; CM.fotoErr=false; showCallState();
+    reduzir(f).then(function(data){ return call("POST","/api/chamado/foto?id="+CALL.id+"&t="+encodeURIComponent(CALL.t),{data:data}); }).then(function(x){
+      if(!CALL) return;
+      if(x.ok){ CALL.fotos=x.j.fotos; CM.fotoMsg="Foto enviada! O motorista já pode ver."; CM.fotoErr=false; }
+      else { CM.fotoMsg=x.j.error||"Não deu pra mandar a foto."; CM.fotoErr=true; }
+      showCallState(); setTimeout(function(){ CM.fotoMsg=""; if(CALL) showCallState(); },5000);
+    }).catch(function(){ CM.fotoMsg="Não deu pra ler essa imagem."; CM.fotoErr=true; showCallState(); });
+  });
   $("callState").addEventListener("click",function(e){
+    if(e.target.closest("[data-foto]")){ $("callFoto").click(); return; }
     if(e.target.closest("[data-again]")){ CALL=null; saveCall(); closeCall(); if(view!=="solicitar") location.href="/solicitar"; return; }
     if(e.target.closest("[data-cancel]")&&CALL&&confirm("Cancelar o chamado?")){
       call("POST","/api/chamado?id="+CALL.id+"&t="+encodeURIComponent(CALL.t)).then(function(){ CALL=null; saveCall(); closeCall(); });

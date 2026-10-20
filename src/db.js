@@ -42,6 +42,8 @@ async function setup(env) {
     `ALTER TABLE ride_calls ADD COLUMN pickup_name TEXT`,
     `ALTER TABLE ride_calls ADD COLUMN km REAL`,
     `ALTER TABLE ride_calls ADD COLUMN price_cents INTEGER`,
+    // Fotos que o passageiro manda pro motorista durante a corrida (guardadas no KV por 1 dia)
+    `ALTER TABLE ride_calls ADD COLUMN fotos INTEGER NOT NULL DEFAULT 0`,
   ]) {
     try { await env.DB.prepare(sql).run(); } catch {}
   }

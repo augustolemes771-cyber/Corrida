@@ -35,6 +35,7 @@ export default {
 };
 
 const ONLINE_MS = 15 * 60 * 1000;     // online = mandou sinal nos últimos 15 min
+const MAX_CALL_PHOTOS = 8;            // fotos por corrida
 const PRICE_PER_KM = 300;             // R$ 3,00 por km, em centavos
 const MIN_PRICE = 1000;               // corrida mínima: R$ 10,00
 const fare = (km) => Math.max(MIN_PRICE, Math.round(km * PRICE_PER_KM));
@@ -199,6 +200,23 @@ async function route(req, env) {
     ).bind(name, phone, note, from.lat, from.lng, Date.now(), token, to.lat, to.lng, cut(b.dest.name, 120), cut(b.from_name, 120), km, price).run();
     return json({ ok: true, id: r.meta.last_row_id, token, online: on.n, km, price_cents: price });
   }
+  // Passageiro manda foto pro motorista (ponto de embarque, roupa, portão...)
+  if (p === "/api/chamado/foto" && m === "POST") {
+    const id = Number(url.searchParams.get("id")), t = url.searchParams.get("t") || "";
+    const row = await env.DB.prepare(`SELECT token,status,fotos FROM ride_calls WHERE id=?`).bind(id).first();
+    if (!row || !row.token || row.token !== t) return json({ error: "Chamado não encontrado." }, 404);
+    if (row.status !== "novo" && row.status !== "aceito") return json({ error: "Esse chamado já terminou." }, 409);
+    if (row.fotos >= MAX_CALL_PHOTOS) return json({ error: `No máximo ${MAX_CALL_PHOTOS} fotos por corrida.` }, 409);
+    const m64 = String((await body(req)).data || "").match(/^data:image\/jpeg;base64,([A-Za-z0-9+/=]+)$/);
+    if (!m64) return json({ error: "Imagem inválida." }, 400);
+    const bytes = Uint8Array.from(atob(m64[1]), (c) => c.charCodeAt(0));
+    if (bytes.length > 600_000) return json({ error: "Foto grande demais." }, 413);
+    const r = await env.DB.prepare(`UPDATE ride_calls SET fotos=fotos+1 WHERE id=? AND fotos<? RETURNING fotos`).bind(id, MAX_CALL_PHOTOS).first();
+    if (!r) return json({ error: `No máximo ${MAX_CALL_PHOTOS} fotos por corrida.` }, 409);
+    await env.RESPOSTAS.put(`foto:${id}:${r.fotos}`, bytes, { expirationTtl: 86400 });
+    return json({ ok: true, fotos: r.fotos });
+  }
+
   if (p === "/api/chamado" && (m === "GET" || m === "POST")) {
     const id = Number(url.searchParams.get("id")), t = url.searchParams.get("t") || "";
     const row = await env.DB.prepare(`SELECT * FROM ride_calls WHERE id=?`).bind(id).first();
@@ -208,7 +226,8 @@ async function route(req, env) {
       return json({ ok: true });
     }
     const status = row.status === "novo" && row.created_at < Date.now() - OPEN_CALL_MS ? "expirou" : row.status;
-    const out = { status, km: row.km, price_cents: row.price_cents, dest_name: row.dest_name || "" };
+    const out = { status, km: row.km, price_cents: row.price_cents, dest_name: row.dest_name || "", fotos: row.fotos || 0,
+      pickup: row.lat != null ? { lat: row.lat, lng: row.lng } : null, dest: row.dest_lat != null ? { lat: row.dest_lat, lng: row.dest_lng } : null };
     if (row.driver_id && (status === "aceito" || status === "concluido")) {
       const u = await env.DB.prepare(`SELECT username FROM users WHERE id=?`).bind(row.driver_id).first();
       const d = await getProfile(env, row.driver_id);
@@ -685,6 +704,15 @@ async function driverApi(req, env, url, p, me, secure) {
       `SELECT * FROM ride_calls WHERE (driver_id=? AND created_at>?) OR (?=1 AND driver_id=0 AND status='novo' AND created_at>?) ORDER BY id DESC LIMIT 30`
     ).bind(me.id, now - 3 * 3600 * 1000, online ? 1 : 0, now - OPEN_CALL_MS).all();
     return json({ chamados: results.map(({ token, ...c }) => ({ ...c, aberto: c.driver_id === 0 })) });
+  }
+  // Fotos do passageiro: só o motorista que aceitou vê
+  const cf = p.match(/^\/api\/chamados\/(\d+)\/foto\/(\d+)$/);
+  if (cf && m === "GET") {
+    const row = await env.DB.prepare(`SELECT driver_id FROM ride_calls WHERE id=?`).bind(Number(cf[1])).first();
+    if (!row || row.driver_id !== me.id) return json({ error: "Não encontrado." }, 404);
+    const v = await env.RESPOSTAS.get(`foto:${cf[1]}:${cf[2]}`, "arrayBuffer");
+    if (!v) return json({ error: "A foto expirou." }, 404);
+    return new Response(v, { headers: { "content-type": "image/jpeg", "cache-control": "private, max-age=86400" } });
   }
   const ch = p.match(/^\/api\/chamados\/(\d+)\/(aceitar|recusar|concluir)$/);
   if (ch && m === "POST") {

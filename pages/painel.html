@@ -175,6 +175,27 @@ body.home .mmark svg.i{width:24px;height:24px;color:var(--accent)}
 body.home #locBtn{bottom:calc(var(--sheet) + 16px + env(safe-area-inset-bottom,0px))}
 body.home #layersBtn{bottom:calc(var(--sheet) + 80px + env(safe-area-inset-bottom,0px))}
 body.home #markBtn{bottom:calc(var(--sheet) + 144px + env(safe-area-inset-bottom,0px))}
+/* Corrida aceita: cartão da corrida em cima da faixa, rota no mapa */
+.trip{position:absolute;left:10px;right:10px;bottom:calc(var(--sheet) + 10px + env(safe-area-inset-bottom,0px));z-index:505;background:#1c1c1e;color:#fff;
+  border:1.5px solid rgba(255,255,255,.85);border-radius:22px;padding:14px 16px;grid-template-columns:1fr;gap:10px;box-shadow:0 16px 40px rgba(0,0,0,.6)}
+.trip-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.trip-top small{display:block;color:#c9c9cc;font-size:14px;font-weight:600}
+.trip-top b{font-size:22px;font-weight:800}
+.trip-price{font-size:26px!important;font-variant-numeric:tabular-nums}
+.trip-eta{font-size:17px;font-weight:700;color:var(--ok)}
+.trip-addr{color:#c9c9cc;font-size:15px;line-height:1.3}
+.trip-acts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.trip-acts a,.trip-acts button{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;border:0;border-radius:14px;background:#2c2c2f;color:#fff;text-decoration:none;padding:10px 4px;font-size:13px;font-weight:700}
+.trip-acts svg{width:22px;height:22px}
+.trip-acts .dot{position:absolute;top:6px;right:calc(50% - 22px);width:12px;height:12px;border-radius:50%;background:#ff4d4f;border:2px solid #2c2c2f}
+.trip-step{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.trip-step button{min-height:48px;border-radius:12px;border:0;font-weight:800;font-size:15px}
+.trip-step .go{background:#e6e6e8;color:#111}
+.trip-step .end{background:var(--ok);color:#06210f}
+body.home.trip #markBtn,body.home.trip #layersBtn,body.home.trip #locBtn{display:none}
+.fotos{display:flex;flex-direction:column;gap:12px}
+.fotos img{width:100%;border-radius:14px;background:var(--panel2)}
+.fotos small{color:var(--muted)}
 body.home.layers #layersBtn{background:var(--accent);color:var(--ink)}
 .hsheet{position:absolute;left:0;right:0;bottom:0;z-index:510;background:#111215;border-radius:20px 20px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.55);
   grid-template-columns:1fr;padding:8px 10px env(safe-area-inset-bottom,0px);overflow:hidden;touch-action:none;transition:transform .2s ease-out;user-select:none;-webkit-user-select:none}
@@ -605,6 +626,17 @@ details.howto ol b{color:var(--fg)}
       <button class="hpill hui" type="button" id="codePill" aria-label="Código da corrida"><small>Código</small><b id="pillCode">----</b><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width:18px;height:18px"><path d="M6 9l6 6 6-6"/></svg></button>
       <button class="hfab hqr hui" type="button" id="qrBtn" aria-label="Mostrar QR pro passageiro"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 20h.01M20 14v.01M14 20h.01"/></svg></button>
       <button class="mfab hui" type="button" id="layersBtn" aria-label="O que mostrar no mapa" aria-pressed="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></button>
+      <div class="trip hui" id="trip" hidden aria-live="polite">
+        <div class="trip-top"><div><small id="tpStage">Indo buscar</small><b id="tpName"></b></div><b class="trip-price" id="tpPrice"></b></div>
+        <div class="trip-eta" id="tpEta"></div>
+        <div class="trip-addr" id="tpAddr"></div>
+        <div class="trip-acts">
+          <a id="tpWa" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1.3-4A8 8 0 1 1 8 18.7z"/></svg>WhatsApp</a>
+          <a id="tpNav" target="_blank" rel="noopener"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l18-8-8 18-2-8z"/></svg>Navegar</a>
+          <button type="button" id="tpFotos"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 5l1.5-2h5L16 5"/></svg>Fotos<span class="dot" id="tpDot" hidden></span></button>
+        </div>
+        <div class="trip-step"><button class="go" type="button" id="tpStep">Passageiro embarcou</button><button class="end" type="button" id="tpDone">Concluir</button></div>
+      </div>
       <button class="hgo hui" type="button" id="goBtn">Ficar<br>online</button>
       <div class="hsheet hui" id="hsheet">
         <div class="hrow">
@@ -1064,7 +1096,7 @@ details.howto ol b{color:var(--fg)}
       var vis=list.filter(function(c){ return c.status==="novo"||c.status==="aceito"; });
       $("callsBox").hidden=!vis.length;
       $("callBadge").hidden=!vis.length; $("callBadge").textContent=vis.length;
-      HC.indo=vis.filter(function(c){ return c.status==="aceito"; })[0]||null; renderHomeBar();
+      HC.indo=vis.filter(function(c){ return c.status==="aceito"; })[0]||null; renderHomeBar(); renderTrip();
       var me=S.saved.name||S.me.user.username;
       $("callList").innerHTML=vis.map(function(c){
         var fone=String(c.phone||"").replace(/^55(?=\d{10,11}$)/,""), wa="https://wa.me/55"+fone+"?text="+encodeURIComponent("Oi "+c.name+", aqui é "+me+" do Driver Hub. "+(c.status==="aceito"?"Tô indo te buscar!":"Vi seu chamado."));
@@ -1079,6 +1111,75 @@ details.howto ol b{color:var(--fg)}
       }).join("");
     });
   }
+  // ----- Corrida aceita: rota no mapa, cartão da corrida e fotos do passageiro -----
+  var TRIP={id:null,etapa:"buscar",layer:null,desenhado:null,timer:null,tick:0};
+  function lsGet(k,d){ try{ var v=localStorage.getItem(k); return v==null?d:v; }catch(e){ return d; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function tripAlvo(c){ return TRIP.etapa==="destino"&&c.dest_lat!=null?{lat:c.dest_lat,lng:c.dest_lng}:(c.lat!=null?{lat:c.lat,lng:c.lng}:null); }
+  function renderTrip(){
+    var c=HC.indo; document.body.classList.toggle("trip",!!c); $("trip").hidden=!c;
+    if(!c){
+      if(TRIP.layer) TRIP.layer.clearLayers(); clearInterval(TRIP.timer); TRIP.timer=null; TRIP.id=null; TRIP.desenhado=null;
+      if(TRIP.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(TRIP.watch); TRIP.watch=null; TRIP.pos=null;
+      if(TRIP.tinha){ TRIP.tinha=false; drawMap(); }
+      return;
+    }
+    // Acompanha sua posição enquanto a corrida durar; a primeira posição já desenha a rota
+    if(TRIP.watch==null&&navigator.geolocation) TRIP.watch=navigator.geolocation.watchPosition(function(p){
+      var primeira=!TRIP.pos; TRIP.pos={lat:p.coords.latitude,lng:p.coords.longitude};
+      if(primeira){ TRIP.desenhado=null; drawTrip(); }
+    },function(){},{enableHighAccuracy:true,maximumAge:10000});
+    if(TRIP.id!==c.id){ TRIP.id=c.id; TRIP.etapa=lsGet("etapa"+c.id,"buscar"); TRIP.desenhado=null; TRIP.tinha=true; drawMap(); }
+    var dest=TRIP.etapa==="destino";
+    $("tpStage").textContent=dest?"Levando até o destino":"Indo buscar";
+    $("tpName").textContent=c.name||"Passageiro";
+    $("tpPrice").textContent=c.price_cents?DHMap.money(c.price_cents):"";
+    $("tpAddr").textContent=dest?(c.dest_name||"Destino marcado no mapa"):(c.pickup_name||c.note||"Embarque marcado no mapa");
+    var fone=String(c.phone||"").replace(/^55(?=\d{10,11}$)/,""), me=S.saved.name||S.me.user.username;
+    $("tpWa").href="https://wa.me/55"+fone+"?text="+encodeURIComponent("Oi "+c.name+", aqui é "+me+" do Driver Hub. "+(dest?"":"Tô indo te buscar!"));
+    var alvo=tripAlvo(c);
+    $("tpNav").href=alvo?"https://www.google.com/maps/dir/?api=1&travelmode=driving&destination="+alvo.lat+","+alvo.lng:"#";
+    $("tpNav").style.opacity=alvo?"":".4";
+    $("tpStep").hidden=dest||c.dest_lat==null;
+    $("tpDot").hidden=!(c.fotos>Number(lsGet("fotosVistas"+c.id,0)));
+    // Durante a corrida confere fotos e rota mais vezes
+    if(!TRIP.timer) TRIP.timer=setInterval(function(){ if(document.hidden) return; pollCalls(); if(++TRIP.tick%3===0){ TRIP.desenhado=null; drawTrip(true); } },8000);
+    drawTrip();
+  }
+  function posAgora(){ return Promise.resolve(TRIP.pos||ON.pos||here||null); }
+  function drawTrip(refresh){
+    var c=HC.indo; if(!c||!dmap) return;
+    var chave=c.id+TRIP.etapa; if(TRIP.desenhado===chave) return; TRIP.desenhado=chave;
+    if(!TRIP.layer) TRIP.layer=L.layerGroup().addTo(dmap);
+    var alvo=tripAlvo(c);
+    posAgora().then(function(me){
+      if(HC.indo!==c&&(!HC.indo||HC.indo.id!==c.id)) return;
+      TRIP.layer.clearLayers();
+      if(c.lat!=null) L.marker([c.lat,c.lng],{icon:ofIcon("of-pin",'<svg viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="4"/><path d="M4 21a8 8 0 0 1 16 0z"/></svg>'),zIndexOffset:900}).addTo(TRIP.layer);
+      if(c.dest_lat!=null) L.marker([c.dest_lat,c.dest_lng],{icon:ofIcon("of-end"),zIndexOffset:800}).addTo(TRIP.layer);
+      if(!me||!alvo){ $("tpEta").textContent=alvo?"Sem sua localização":""; if(alvo&&!refresh) dmap.setView([alvo.lat,alvo.lng],15); return; }
+      DHMap.carMarker(me.lat,me.lng).addTo(TRIP.layer);
+      DHMap.route(me,alvo).then(function(r){
+        if(!HC.indo||HC.indo.id!==c.id) return;
+        ofRoute(r.coords,TRIP.layer);
+        $("tpEta").textContent=r.min+" min · "+r.km.toFixed(1).replace(".",",")+" km"+(TRIP.etapa==="destino"?" até o destino":" até o passageiro");
+        if(!refresh) dmap.fitBounds(L.latLngBounds(r.coords.concat([[me.lat,me.lng]])),{paddingTopLeft:[40,90],paddingBottomRight:[40,$("trip").offsetHeight+110],maxZoom:17});
+      });
+    });
+  }
+  $("tpStep").addEventListener("click",function(){ var c=HC.indo; if(!c) return; TRIP.etapa="destino"; lsSet("etapa"+c.id,"destino"); TRIP.desenhado=null; renderTrip(); });
+  $("tpDone").addEventListener("click",function(){
+    var c=HC.indo; if(!c||!confirm("Concluir a corrida de "+c.name+"?")) return;
+    call("POST","/api/chamados/"+c.id+"/concluir").then(function(){ toast("Corrida concluída"); HC.indo=null; renderHomeBar(); renderTrip(); pollCalls(); });
+  });
+  $("tpFotos").addEventListener("click",function(){
+    var c=HC.indo; if(!c) return;
+    lsSet("fotosVistas"+c.id,c.fotos||0); $("tpDot").hidden=true;
+    var h=c.fotos?'<div class="fotos">'+Array.from({length:c.fotos}).map(function(_,i){ var n=c.fotos-i; return '<small>Foto '+n+'</small><img src="/api/chamados/'+c.id+'/foto/'+n+'" alt="Foto '+n+' de '+esc(c.name)+'" loading="lazy">'; }).join("")+'</div>'
+      :'<p class="hint">'+esc(c.name)+' ainda não mandou foto. Quando mandar, aparece uma bolinha vermelha no botão Fotos.</p>';
+    openSheet("Fotos de "+(c.name||"passageiro"),h);
+  });
+
   // ----- Cartão de oferta -----
   var offerMap=null, offerLayer=null, offerTimer=null, offerCall=null;
   function beep(){
@@ -1096,7 +1197,7 @@ details.howto ol b{color:var(--fg)}
   // Cartão da corrida no estilo dos apps: mapa inteiro com a rota, cartão escuro embaixo
   var fmtKm=function(k){ return k.toFixed(1).replace(".",",")+" km"; };
   function ofIcon(cls,html){ return L.divIcon({className:"",iconSize:[0,0],html:'<div class="'+cls+'">'+(html||"")+'</div>'}); }
-  function ofRoute(coords){ L.polyline(coords,{color:"#1c1c1e",weight:9,opacity:.9}).addTo(offerLayer); L.polyline(coords,{color:"#d9d9dc",weight:5,opacity:1}).addTo(offerLayer); }
+  function ofRoute(coords,layer){ layer=layer||offerLayer; L.polyline(coords,{color:"#1c1c1e",weight:9,opacity:.9}).addTo(layer); L.polyline(coords,{color:"#d9d9dc",weight:5,opacity:1}).addTo(layer); }
   function ofFit(){
     var pts=[]; offerLayer.eachLayer(function(l){ if(l.getLatLng) pts.push(l.getLatLng()); else if(l.getLatLngs) pts=pts.concat(l.getLatLngs()); });
     if(pts.length>1) offerMap.fitBounds(L.latLngBounds(pts),{paddingTopLeft:[40,60],paddingBottomRight:[40,document.querySelector(".offer-card").offsetHeight+30],maxZoom:16});
@@ -1150,7 +1251,7 @@ details.howto ol b{color:var(--fg)}
       if(!x.ok){ toast(x.j.error||"Não deu pra aceitar."); closeOffer(); return; }
       // O passageiro acompanha o carro: liga o modo online se estiver desligado
       if(!ON.on) startOnline(true);
-      toast("Aceito! Avise "+c.name+" no WhatsApp."); closeOffer(); go("inicio");
+      toast("Aceito! Siga a rota até "+c.name+"."); closeOffer(); go("mapa");
     });
   });
   $("ofReject").addEventListener("click",function(){ var c=offerCall; if(c){ if(c.aberto) ocultar(c.id); call("POST","/api/chamados/"+c.id+"/recusar"); } closeOffer(); });
@@ -1612,7 +1713,8 @@ details.howto ol b{color:var(--fg)}
       dmap=DHMap.create($("dmap"),PS.city||S.me.city,{zoom:14}); dlayer=L.layerGroup().addTo(dmap);
       renderLayerRow(); renderFuelRows();
       // Online: abre já centrado em você, como nos apps de corrida
-      if(ON.on) locate(function(){ meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); });
+      if(ON.on&&!HC.indo) locate(function(){ meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); });
+      TRIP.desenhado=null; drawTrip();
     }
     setTimeout(function(){ dmap.invalidateSize(); },60);
     loadPS().then(function(){ drawMap(); if(focus){ dmap.setView([focus.lat,focus.lng],17); openPlace(focus); } });
@@ -1626,6 +1728,7 @@ details.howto ol b{color:var(--fg)}
       DHMap.marker(p,{fuel:FUEL,best:best&&best.id}).on("click",function(e){ L.DomEvent.stopPropagation(e); if(!picking) openPlace(p); }).addTo(dlayer);
     });
     if(!hidden.motoristas) (PS.drivers||[]).forEach(function(d){
+      if(d.me&&HC.indo) return; // na corrida, você é o carro da rota
       var face=d.avatar?'<img src="'+DHMap.esc(d.avatar)+'" alt="">':DHMap.esc((d.name||"?").charAt(0).toUpperCase());
       var icon=L.divIcon({className:"",iconSize:[0,0],html:'<div class="dh-drv'+(d.me?" me":"")+'"><span class="face">'+face+'</span><span class="nm">'+(d.me?"Você":DHMap.esc(d.name))+'</span></div>'});
       L.marker([d.lat,d.lng],{icon:icon,zIndexOffset:500,title:d.name}).on("click",function(e){ L.DomEvent.stopPropagation(e); if(!picking) openDriver(d); }).addTo(dlayer);
