@@ -191,9 +191,6 @@ body.home.sheetopen #locBtn,body.home.sheetopen #layersBtn,body.home.sheetopen #
 .modeopt[aria-pressed=true] .rad::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--accent)}
 .modeopt b{display:block;font-size:17px}
 .modeopt small{display:block;color:var(--muted);font-size:14px;margin-top:2px}
-.offer-price{display:flex;align-items:baseline;gap:10px;font-weight:800}
-.offer-price b{font-family:var(--display);font-weight:900;font-size:44px;line-height:.9;color:var(--ok)}
-.offer-price span{color:var(--muted);font-size:15px}
 .hstate.part{color:var(--accent);font-size:20px}
 .hsheet::before{content:"";position:absolute;left:50%;top:7px;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:#3a3d48}
 .hsheet.on::before,.hsheet.pt::before{background:#6a6e7c}
@@ -266,22 +263,36 @@ body.as .hmenu,body.as .hqr,body.as .hpill{top:calc(var(--ash) + 14px + env(safe
 .status-on{color:var(--ok)}
 
 /* Oferta de corrida (estilo apps de corrida) */
-.offer{position:fixed;inset:0;z-index:90;background:rgba(4,5,10,.55);display:flex;align-items:flex-end;justify-content:center}
-.offer-card{width:100%;max-width:520px;background:#10131c;border-radius:22px 22px 0 0;overflow:hidden;box-shadow:0 -20px 40px rgba(0,0,0,.6);animation:sheetup .25s ease-out}
-#offerMap{height:240px;background:#151a24}
-.offer-body{padding:16px 18px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
-.offer-tag{font-size:13px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.06em}
-.offer-eta{font-family:var(--display);font-weight:900;font-size:40px;line-height:.95;text-transform:uppercase}
-.offer-who{display:flex;align-items:center;gap:10px;font-size:18px}
-.offer-who .ava{width:36px;height:36px;font-size:17px}
-.offer-row{display:flex;gap:12px;align-items:flex-start}
-.offer-row small{display:block;color:var(--muted);font-size:13px}
-.offer-row b{font-size:16px}
-.dotp{width:12px;height:12px;border-radius:50%;background:var(--accent);margin-top:6px;flex:none;box-shadow:0 0 0 4px rgba(255,179,71,.2)}
-.offer-note{margin:0;padding:10px 12px;border-radius:12px;background:var(--panel2);font-size:15px}
-.offer-timer{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
-.offer-timer i{display:block;height:100%;width:100%;background:var(--accent);transform-origin:left;transition:transform 1s linear}
-.offer-accept{min-height:58px;font-size:20px}
+.offer{position:fixed;inset:0;z-index:90;background:#0c0e1a;display:flex;align-items:flex-end;justify-content:center}
+#offerMap{position:absolute;inset:0;background:#151a24}
+.offer-card{position:relative;z-index:500;width:calc(100% - 24px);max-width:500px;margin:0 12px calc(12px + env(safe-area-inset-bottom,0px));background:#1c1c1e;color:#fff;
+  border:1.5px solid rgba(255,255,255,.85);border-radius:24px;padding:16px 18px 18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 50px rgba(0,0,0,.6);animation:sheetup .25s ease-out}
+.of-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.of-chip{display:inline-flex;align-items:center;gap:8px;background:#ececec;color:#111;border-radius:10px;padding:7px 12px;font-weight:700;font-size:16px}
+.of-chip svg{width:18px;height:18px;fill:#111;stroke:none}
+.of-x{width:52px;height:52px;border-radius:14px;border:0;background:#2a2a2d;color:#fff;display:grid;place-items:center;padding:0}
+.of-x svg{width:26px;height:26px}
+.of-price{font-size:clamp(46px,14vw,58px);font-weight:800;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.of-price.combinar{font-size:34px}
+.of-who{display:flex;flex-wrap:wrap;gap:8px}
+.of-pill{display:inline-flex;align-items:center;gap:8px;background:#2c2c2f;border-radius:10px;padding:8px 12px;font-size:16px;font-weight:600}
+.of-pill svg{width:18px;height:18px}
+.of-hr{height:1px;background:#3a3a3d;border:0;margin:0}
+.of-tl{list-style:none;margin:0;padding:0 0 0 30px;position:relative;display:flex;flex-direction:column;gap:14px}
+.of-tl li:not(:last-child)::after{content:"";position:absolute;left:-22px;top:16px;bottom:-14px;width:1.5px;background:#d0d0d0}
+#offerMap .leaflet-bottom{bottom:auto;top:calc(10px + env(safe-area-inset-top,0px))}
+.of-tl li{position:relative;display:flex;flex-direction:column;gap:2px}
+.of-tl li::before{content:"";position:absolute;left:-26px;top:5px;width:9px;height:9px;border:1.5px solid #d0d0d0;border-radius:50%;background:#1c1c1e}
+.of-tl li.fim::before{border-radius:2px}
+.of-tl b{font-size:19px;font-weight:600}
+.of-tl span{color:#c9c9cc;font-size:17px;line-height:1.3}
+.of-note{margin:0;padding:10px 12px;border-radius:12px;background:#2c2c2f;font-size:15px;color:#e5e5e7}
+.of-go{position:relative;overflow:hidden;min-height:62px;border:0;border-radius:12px;background:#b9b9bc;color:#111;font-size:21px;font-weight:600;padding:0}
+.of-go i{position:absolute;left:0;top:0;bottom:0;width:100%;background:#e6e6e8;transform-origin:left;transition:transform 1s linear}
+.of-go span{position:relative}
+.of-pin{position:absolute;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:#1f6feb;border:3px solid #1c1c1e;display:grid;place-items:center;box-shadow:0 0 0 2px #1f6feb}
+.of-pin svg{width:20px;height:20px;fill:#fff}
+.of-end{position:absolute;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:3px;background:#fff;border:4px solid #1c1c1e;box-shadow:0 0 0 2px #fff}
 
 /* Folha (detalhes e formulários) */
 .dsheet{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-end;justify-content:center;background:rgba(4,5,10,.45)}
@@ -706,21 +717,23 @@ details.howto ol b{color:var(--fg)}
   </div>
 </div>
 <input type="file" id="placeFile" accept="image/*" hidden>
-<div class="offer" id="offer" hidden role="dialog" aria-modal="true" aria-labelledby="ofName">
+<div class="offer" id="offer" hidden role="dialog" aria-modal="true" aria-labelledby="ofPriceVal">
+  <div id="offerMap"></div>
   <div class="offer-card">
-    <div id="offerMap"></div>
-    <div class="offer-body">
-      <div class="offer-tag" id="ofTag">Corrida particular · Driver Hub</div>
-      <div class="offer-eta" id="ofEta">Calculando rota…</div>
-      <div class="offer-price" id="ofPrice" hidden><b id="ofPriceVal"></b><span id="ofPriceKm"></span></div>
-      <div class="offer-who"><span class="ava" id="ofAva"></span><b id="ofName"></b></div>
-      <div class="offer-row"><span class="dotp"></span><div><small>Embarque</small><b id="ofAddr">Buscando endereço…</b></div></div>
-      <div class="offer-row" id="ofDestRow" hidden><span class="dotp" style="background:var(--ok)"></span><div><small>Destino</small><b id="ofDest"></b></div></div>
-      <p class="offer-note" id="ofNote" hidden></p>
-      <div class="offer-timer"><i id="ofBar"></i></div>
-      <button class="btn primary block offer-accept" type="button" id="ofAccept">Aceitar</button>
-      <button class="btn ghost block" type="button" id="ofReject">Recusar</button>
+    <div class="of-top">
+      <span class="of-chip"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7.5" r="4"/><path d="M4 21a8 8 0 0 1 16 0z"/></svg><span id="ofTag">Driver Hub</span></span>
+      <button class="of-x" type="button" id="ofReject" aria-label="Recusar"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
+    <div class="of-price" id="ofPriceVal"></div>
+    <div class="of-who"><span class="of-pill"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span id="ofName"></span></span><span class="of-pill" id="ofKind"></span></div>
+    <hr class="of-hr">
+    <ol class="of-tl">
+      <li><b id="ofEta">Calculando…</b><span id="ofAddr"></span></li>
+      <li class="fim" id="ofDestRow"><b id="ofTrip"></b><span id="ofDest"></span></li>
+    </ol>
+    <p class="of-note" id="ofNote" hidden></p>
+    <hr class="of-hr">
+    <button class="of-go" type="button" id="ofAccept"><i id="ofBar"></i><span>Aceitar</span></button>
   </div>
 </div>
 
@@ -1063,34 +1076,54 @@ details.howto ol b{color:var(--fg)}
       navigator.geolocation.getCurrentPosition(function(p){ ok({lat:p.coords.latitude,lng:p.coords.longitude}); },function(){ ok(null); },{enableHighAccuracy:true,timeout:6000,maximumAge:60000});
     });
   }
+  // Cartão da corrida no estilo dos apps: mapa inteiro com a rota, cartão escuro embaixo
+  var fmtKm=function(k){ return k.toFixed(1).replace(".",",")+" km"; };
+  function ofIcon(cls,html){ return L.divIcon({className:"",iconSize:[0,0],html:'<div class="'+cls+'">'+(html||"")+'</div>'}); }
+  function ofRoute(coords){ L.polyline(coords,{color:"#1c1c1e",weight:9,opacity:.9}).addTo(offerLayer); L.polyline(coords,{color:"#d9d9dc",weight:5,opacity:1}).addTo(offerLayer); }
+  function ofFit(){
+    var pts=[]; offerLayer.eachLayer(function(l){ if(l.getLatLng) pts.push(l.getLatLng()); else if(l.getLatLngs) pts=pts.concat(l.getLatLngs()); });
+    if(pts.length>1) offerMap.fitBounds(L.latLngBounds(pts),{paddingTopLeft:[40,60],paddingBottomRight:[40,document.querySelector(".offer-card").offsetHeight+30],maxZoom:16});
+  }
   function showOffer(c){
     offerCall=c; beep();
-    $("ofTag").textContent=c.aberto?"Corrida pelo app · quem aceitar primeiro leva":"Corrida particular · Driver Hub";
-    $("ofPrice").hidden=!c.price_cents; if(c.price_cents){ $("ofPriceVal").textContent=DHMap.money(c.price_cents); $("ofPriceKm").textContent="corrida de "+String(c.km.toFixed(1)).replace(".",",")+" km"; }
-    $("ofDestRow").hidden=!c.dest_name&&c.dest_lat==null; $("ofDest").textContent=c.dest_name||"Ponto marcado no mapa";
-    $("ofName").textContent=c.name; $("ofAva").textContent=(c.name||"?").charAt(0).toUpperCase();
+    $("ofTag").textContent=c.aberto?"Driver Hub":"Particular";
+    $("ofKind").textContent=c.aberto?"Corrida pelo app":"Te chamou pela sua página";
+    $("ofPriceVal").textContent=c.price_cents?DHMap.money(c.price_cents):"Valor a combinar";
+    $("ofPriceVal").classList.toggle("combinar",!c.price_cents);
+    $("ofName").textContent=c.name||"Passageiro";
     $("ofNote").hidden=!c.note; $("ofNote").textContent=c.note?"“"+c.note+"”":"";
-    $("ofEta").textContent=c.lat!=null?"Calculando rota…":"Sem localização"; $("ofAddr").textContent=c.lat!=null?"Buscando endereço…":(c.note||"Combine pelo WhatsApp");
+    var temDest=c.dest_lat!=null;
+    $("ofDestRow").hidden=!temDest;
+    $("ofDest").textContent=c.dest_name||"Ponto marcado no mapa";
+    $("ofTrip").textContent=c.km?fmtKm(c.km):"";
+    $("ofEta").textContent=c.lat!=null?"Calculando…":"Sem localização";
+    $("ofAddr").textContent=c.pickup_name||(c.lat!=null?"Buscando endereço…":"Combine pelo WhatsApp");
     $("offer").hidden=false;
     if(!offerMap){ offerMap=DHMap.create($("offerMap"),S.me.city,{zoom:15}); offerLayer=L.layerGroup().addTo(offerMap); }
     setTimeout(function(){ offerMap.invalidateSize(); },60);
     offerLayer.clearLayers();
     if(c.lat!=null){
-      var pick={lat:c.lat,lng:c.lng}; DHMap.pinMarker(pick.lat,pick.lng).addTo(offerLayer); offerMap.setView([pick.lat,pick.lng],15);
-      if(c.dest_lat!=null) DHMap.pinMarker(c.dest_lat,c.dest_lng,"#5fd39a").addTo(offerLayer);
-      if(c.pickup_name) $("ofAddr").textContent=c.pickup_name;
-      else DHMap.addr(pick).then(function(a){ if(offerCall===c) $("ofAddr").textContent=a||"Ponto marcado no mapa"; });
+      var pick={lat:c.lat,lng:c.lng};
+      L.marker([pick.lat,pick.lng],{icon:ofIcon("of-pin",'<svg viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="4"/><path d="M4 21a8 8 0 0 1 16 0z"/></svg>'),zIndexOffset:900}).addTo(offerLayer);
+      offerMap.setView([pick.lat,pick.lng],15);
+      if(!c.pickup_name) DHMap.addr(pick).then(function(a){ if(offerCall===c) $("ofAddr").textContent=a||"Ponto marcado no mapa"; });
+      if(temDest){
+        var dest={lat:c.dest_lat,lng:c.dest_lng};
+        L.marker([dest.lat,dest.lng],{icon:ofIcon("of-end"),zIndexOffset:800}).addTo(offerLayer);
+        DHMap.route(pick,dest).then(function(r){ if(offerCall!==c) return; ofRoute(r.coords); $("ofTrip").textContent=r.min+" min ("+fmtKm(c.km||r.km)+")"; ofFit(); });
+      }
       myPos().then(function(me){
-        if(!me||offerCall!==c){ $("ofEta").textContent="Passageiro no mapa"; return; }
+        if(!me||offerCall!==c){ if(offerCall===c) $("ofEta").textContent="Embarque"; return; }
         DHMap.carMarker(me.lat,me.lng).addTo(offerLayer);
         DHMap.route(me,pick).then(function(r){ if(offerCall!==c) return;
-          L.polyline(r.coords,{color:"#ffb347",weight:5,opacity:.95}).addTo(offerLayer);
-          offerMap.fitBounds(L.latLngBounds(r.coords),{padding:[30,30]});
-          $("ofEta").textContent=r.min+" min · "+r.km.toFixed(1).replace(".",",")+" km";
+          ofRoute(r.coords); ofFit();
+          $("ofEta").textContent=r.min+" min ("+fmtKm(r.km)+")";
         });
       });
+      setTimeout(ofFit,120);
     }
-    var left=30; $("ofBar").style.transform="scaleX(1)"; clearInterval(offerTimer);
+    var left=30; $("ofBar").style.transition="none"; $("ofBar").style.transform="scaleX(1)"; clearInterval(offerTimer);
+    setTimeout(function(){ $("ofBar").style.transition=""; },30);
     offerTimer=setInterval(function(){ left--; $("ofBar").style.transform="scaleX("+(left/30)+")"; if(left<=0){ closeOffer(); } },1000);
   }
   function closeOffer(){ clearInterval(offerTimer); $("offer").hidden=true; offerCall=null; pollCalls(); }
