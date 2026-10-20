@@ -44,6 +44,8 @@ jobs:
           import json, re
           c = json.load(open("capacitor.config.json"))
           c["server"] = {"url": "http://localhost:8787/painel", "cleartext": True, "allowNavigation": ["localhost"]}
+          c["android"]["webContentsDebuggingEnabled"] = True
+          c["loggingBehavior"] = "production"
           json.dump(c, open("capacitor.config.json", "w"), indent=2)
           m = "android/app/src/main/AndroidManifest.xml"
           x = open(m).read().replace("<application", '<application android:usesCleartextTraffic="true"', 1)

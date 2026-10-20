@@ -1001,8 +1001,9 @@ details.howto ol b{color:var(--fg)}
   var NATIVE=!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
   var ANDROID=NATIVE&&Capacitor.getPlatform&&Capacitor.getPlatform()==="android";
   // Android: serviço nativo que envia sozinho (a página congela em segundo plano). iPhone: plugin de localização.
-  var RAST=ANDROID&&Capacitor.registerPlugin?Capacitor.registerPlugin("Rastreio"):null;
-  var BG=NATIVE&&!ANDROID&&Capacitor.registerPlugin?Capacitor.registerPlugin("BackgroundGeolocation"):null;
+  var PL=(NATIVE&&window.Capacitor.Plugins)||{};
+  var RAST=ANDROID?PL.Rastreio||null:null;
+  var BG=NATIVE&&!ANDROID?PL.BackgroundGeolocation||null:null;
   var ON={on:false,watch:null,last:0,pos:null};
   function sendLoc(p){
     var now=Date.now();
