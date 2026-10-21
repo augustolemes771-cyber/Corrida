@@ -256,7 +256,7 @@ body.as .hmenu,body.as .hqr,body.as .hpill{top:calc(var(--ash) + 14px + env(safe
 
 /* Seu carro ao vivo no mapa (seta que aponta pra onde você vai) */
 .live-car{position:absolute;left:-23px;top:-23px;width:46px;height:46px;border-radius:50%;background:#111;border:3px solid #fff;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.6)}
-.live-car svg{width:22px;height:22px;fill:#fff;transition:transform .4s ease-out}
+.live-car svg{width:22px;height:22px;fill:#fff}
 
 /* Menu lateral */
 .mtop{border:0;background:none;color:var(--fg);width:40px;height:40px;display:grid;place-items:center;padding:0;margin-left:-6px}
@@ -1479,31 +1479,51 @@ details.howto ol b{color:var(--fg)}
     fetch("/api/localizacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(ON.pos),credentials:"same-origin"}).catch(function(){});
   }
   // ----- Seu carro ao vivo: cada leitura do GPS move o carro na hora, deslizando, e o mapa acompanha -----
-  var LIVE={mk:null,pos:null,head:0,follow:true,watch:null,anim:null};
+  // Movimento contínuo como na Uber: entre uma leitura do GPS e a próxima o carro segue andando,
+  // no ritmo em que as leituras chegam, e o mapa acompanha quadro a quadro. A seta gira suave.
+  var LIVE={mk:null,pos:null,head:0,headShow:0,follow:true,watch:null,raf:null,
+    from:null,to:null,t0:0,dur:1000,lastFix:0,gap:1000,show:null};
   function rumo(a,b){ var r=Math.PI/180, y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r), x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r); return (Math.atan2(y,x)/r+360)%360; }
   function onPos(p){
     if(!p||!isFinite(p.lat)||!isFinite(p.lng)) return;
-    var prev=LIVE.pos; LIVE.pos={lat:p.lat,lng:p.lng}; TRIP.pos=LIVE.pos; here=LIVE.pos;
-    if(p.heading!=null&&isFinite(p.heading)&&p.speed>1) LIVE.head=p.heading; else if(prev&&DHMap.distKm(prev,p)>0.004) LIVE.head=rumo(prev,p);
-    drawLive(prev);
+    var prev=LIVE.pos, now=performance.now(), d=prev?DHMap.distKm(prev,p)*1000:999;
+    // Parado: ignora o tremido do GPS (menos de 4 m, ou menos que a imprecisão da leitura)
+    var parado=prev&&(d<4||(p.acc&&d<Math.min(p.acc,25)&&!(p.speed>1)));
+    if(!parado){
+      LIVE.pos={lat:p.lat,lng:p.lng}; TRIP.pos=LIVE.pos; here=LIVE.pos;
+      if(p.heading!=null&&isFinite(p.heading)&&p.speed>1) LIVE.head=p.heading; else if(prev&&d>4) LIVE.head=rumo(prev,p);
+      // Tempo entre leituras (média), pra o carro chegar no ponto bem quando vem a próxima
+      if(LIVE.lastFix) LIVE.gap=Math.max(300,Math.min(2500,LIVE.gap*.6+(now-LIVE.lastFix)*.4));
+      LIVE.lastFix=now;
+      LIVE.from=LIVE.show||LIVE.pos; LIVE.to=LIVE.pos; LIVE.t0=now; LIVE.dur=LIVE.gap*1.05;
+      drawLive();
+    }
     sendLoc(p);
     // Na corrida, refaz a rota quando andou 150 m (a primeira posição já desenha)
     if(HC.indo&&(!TRIP.rotaDe||DHMap.distKm(TRIP.rotaDe,p)>0.15)){ var primeira=!TRIP.rotaDe; TRIP.desenhado=null; drawTrip(!primeira); }
   }
-  function drawLive(prev){
+  function drawLive(){
     if(!dmap||!LIVE.pos) return;
-    var to=LIVE.pos;
     if(!LIVE.mk){
-      LIVE.mk=L.marker([to.lat,to.lng],{zIndexOffset:1000,interactive:false,icon:L.divIcon({className:"",iconSize:[0,0],html:'<div class="live-car"><svg viewBox="0 0 24 24"><path d="M12 2l7 18-7-4-7 4z"/></svg></div>'})}).addTo(dmap);
-      if(LIVE.follow&&S.view==="mapa"&&!HC.indo) dmap.setView([to.lat,to.lng],Math.max(dmap.getZoom(),16));
+      LIVE.show=LIVE.pos; LIVE.headShow=LIVE.head;
+      LIVE.mk=L.marker([LIVE.pos.lat,LIVE.pos.lng],{zIndexOffset:1000,interactive:false,icon:L.divIcon({className:"",iconSize:[0,0],html:'<div class="live-car"><svg viewBox="0 0 24 24"><path d="M12 2l7 18-7-4-7 4z"/></svg></div>'})}).addTo(dmap);
+      if(LIVE.follow&&S.view==="mapa"&&!HC.indo) dmap.setView([LIVE.pos.lat,LIVE.pos.lng],Math.max(dmap.getZoom(),16),{animate:false});
       drawMap();
-    } else {
-      // Desliza do ponto anterior até o novo em ~0,8 s
-      var from=LIVE.mk.getLatLng(), t0=performance.now(); cancelAnimationFrame(LIVE.anim);
-      (function passo(t){ var k=Math.min(1,(t-t0)/800); LIVE.mk.setLatLng([from.lat+(to.lat-from.lat)*k,from.lng+(to.lng-from.lng)*k]); if(k<1) LIVE.anim=requestAnimationFrame(passo); })(t0);
-      if(LIVE.follow&&S.view==="mapa") dmap.panTo([to.lat,to.lng],{animate:true,duration:.8});
     }
-    var el=LIVE.mk.getElement(); if(el){ var sv=el.querySelector("svg"); if(sv) sv.style.transform="rotate("+LIVE.head+"deg)"; }
+    if(!LIVE.raf) LIVE.raf=requestAnimationFrame(quadro);
+  }
+  function quadro(t){
+    LIVE.raf=null; if(!LIVE.mk||!LIVE.to) return;
+    if(document.hidden){ LIVE.raf=requestAnimationFrame(quadro); return; }
+    var k=Math.min(1,(t-LIVE.t0)/LIVE.dur), f=LIVE.from, o=LIVE.to;
+    LIVE.show={lat:f.lat+(o.lat-f.lat)*k,lng:f.lng+(o.lng-f.lng)*k};
+    LIVE.mk.setLatLng([LIVE.show.lat,LIVE.show.lng]);
+    // Seta: gira pelo menor caminho, um pouco a cada quadro
+    var dh=((LIVE.head-LIVE.headShow+540)%360)-180; LIVE.headShow=(LIVE.headShow+dh*.12+360)%360;
+    var el=LIVE.mk.getElement(), sv=el&&el.querySelector("svg"); if(sv) sv.style.transform="rotate("+LIVE.headShow.toFixed(1)+"deg)";
+    if(LIVE.follow&&S.view==="mapa") dmap.setView([LIVE.show.lat,LIVE.show.lng],dmap.getZoom(),{animate:false});
+    // Continua enquanto anda ou a seta ainda gira
+    if(k<1||Math.abs(dh)>.5) LIVE.raf=requestAnimationFrame(quadro);
   }
   // GPS com a tela aberta (Android e iPhone): alimenta o carro ao vivo enquanto estiver online ou numa corrida
   function startLive(){
@@ -1514,7 +1534,7 @@ details.howto ol b{color:var(--fg)}
   function stopLive(){
     if(ON.on||HC.indo) return;
     if(LIVE.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(LIVE.watch); LIVE.watch=null;
-    if(LIVE.mk){ LIVE.mk.remove(); LIVE.mk=null; } LIVE.pos=null; if(dmap) drawMap();
+    if(LIVE.mk){ LIVE.mk.remove(); LIVE.mk=null; } LIVE.pos=LIVE.show=LIVE.to=null; LIVE.lastFix=0; if(dmap) drawMap();
   }
   // Ficar online: o servidor marca na hora; a localização vem depois. Se o GPS falhar, continua online e avisa.
   // iPhone: só fica online com a localização ligada. Pede a permissão (janela do iOS) e espera a primeira posição.
@@ -1802,7 +1822,7 @@ details.howto ol b{color:var(--fg)}
     openSheet("Motorista",h);
   }
   $("locBtn").addEventListener("click",function(){
-    LIVE.follow=true; if(LIVE.pos){ dmap.setView([LIVE.pos.lat,LIVE.pos.lng],Math.max(dmap.getZoom(),16)); return; }
+    LIVE.follow=true; if(LIVE.pos){ var c=LIVE.show||LIVE.pos; dmap.setView([c.lat,c.lng],Math.max(dmap.getZoom(),16)); drawLive(); return; }
     locate(function(){ if(meDot) meDot.remove(); meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); }); });
   function startPick(state){
     picking=state; closeSheet();
