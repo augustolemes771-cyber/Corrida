@@ -1507,7 +1507,7 @@ details.howto ol b{color:var(--fg)}
   // "ok" com a primeira posição; "negada" sem permissão; "falhou" se o GPS não respondeu
   function pedirLocalizacao(){
     return new Promise(function(res){
-      var fim=false, fontes=0, nao=0, negou=false, wid=null;
+      var fim=false, fontes=0, nao=0, negou=false, wid=null; ON.diag=[];
       function done(r,loc){ if(fim) return; fim=true; if(wid&&BG) try{ BG.removeWatcher({id:wid}); }catch(e){} if(loc) sendLoc(loc); res(r); }
       function falha(neg){ nao++; if(neg) negou=true; if(nao>=fontes) done(negou?"negada":"falhou"); }
       setTimeout(function(){ done(negou?"negada":"falhou"); },25000);
@@ -1516,26 +1516,29 @@ details.howto ol b{color:var(--fg)}
         try{
           BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
             function(loc,err){
-              if(err) falha(err.code==="NOT_AUTHORIZED");
+              if(err){ ON.diag.push("app: "+(err.code||err.message||"erro")); falha(err.code==="NOT_AUTHORIZED"); }
               else if(loc) done("ok",{lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed});
-            }).then(function(id){ wid=id; if(fim) try{ BG.removeWatcher({id:id}); }catch(e){} }).catch(function(){ falha(false); });
-        }catch(e){ falha(false); }
+            }).then(function(id){ wid=id; if(fim) try{ BG.removeWatcher({id:id}); }catch(e){} }).catch(function(e){ ON.diag.push("app: "+((e&&(e.code||e.message))||"falhou")); falha(false); });
+        }catch(e){ ON.diag.push("app: "+(e&&e.message||"indisponível")); falha(false); }
       }
       if(navigator.geolocation){
         fontes++;
         navigator.geolocation.getCurrentPosition(function(p){ done("ok",{lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed}); },
-          function(e){ falha(e.code===1); },{enableHighAccuracy:true,timeout:20000,maximumAge:30000});
+          function(e){ ON.diag.push("página: "+({1:"negada",2:"sem sinal",3:"demorou"}[e.code]||e.code)); falha(e.code===1); },{enableHighAccuracy:true,timeout:20000,maximumAge:30000});
       }
+      if(!BG) ON.diag.push("app: sem módulo de localização");
       if(!fontes) done("negada");
     });
   }
   function semLocalizacao(r){
-    if(r==="falhou"){ toast("Não deu pra pegar sua localização. Vá pra um lugar aberto e tente de novo."); return; }
+    var diag=(ON.diag||[]).join(" · ");
+    if(r==="falhou"){ toast("Não deu pra pegar sua localização. Vá pra um lugar aberto e tente de novo."+(diag?" ("+diag+")":"")); return; }
     openSheet("Ligue a localização",
       '<p class="hint" style="font-size:16px;margin:0 0 14px">Pra ficar online, o Driver Hub precisa da sua localização: é ela que mostra você pros passageiros e calcula a distância das corridas.</p>'+
       '<ol style="margin:0 0 16px;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:16px"><li>Abra os <b>Ajustes</b> do iPhone</li><li>Toque em <b>Driver Hub</b> → <b>Localização</b></li><li>Escolha <b>Sempre</b> (ou <b>Durante o Uso</b>) e ligue <b>Localização Precisa</b></li><li>Volte aqui e toque em <b>Ficar online</b></li></ol>'+
       (BG&&BG.openSettings?'<button class="btn primary block" type="button" data-loc="ajustes">Abrir Ajustes</button>':'')+
-      '<button class="btn block" type="button" data-loc="tentar" style="margin-top:8px">Tentar de novo</button>');
+      '<button class="btn block" type="button" data-loc="tentar" style="margin-top:8px">Tentar de novo</button>'+
+      (diag?'<p class="hint" style="margin:12px 0 0;font-size:12px;opacity:.75">Diagnóstico: '+esc(diag)+'</p>':''));
   }
   $("dsBody").addEventListener("click",function(e){
     var b=e.target.closest("[data-loc]"); if(!b) return;
