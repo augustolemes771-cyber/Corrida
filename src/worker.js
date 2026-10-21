@@ -34,6 +34,8 @@ export default {
   },
 };
 
+// Pedido de corrida pelo passageiro: desligado até legalizar. A versão completa está na branch "apenas-corridas".
+const CORRIDAS = false;
 const ONLINE_MS = 15 * 60 * 1000;     // online = mandou sinal nos últimos 15 min
 const MAX_CALL_PHOTOS = 8;            // fotos por corrida
 const PRICE_PER_KM = 300;             // R$ 3,00 por km, em centavos
@@ -87,12 +89,13 @@ async function route(req, env) {
   // Primeira tela do app Android: já logado vai direto pra sua área; senão escolhe motorista ou passageiro
   if (p === "/app") {
     const me = await currentUser(env, req);
-    if (me) return Response.redirect(url.origin + (me.role === "passenger" ? "/solicitar" : "/painel"), 302);
+    if (me) return Response.redirect(url.origin + (me.role !== "passenger" ? "/painel" : CORRIDAS ? "/solicitar" : "/motoristas"), 302);
     return htmlResponse(APP, 200, { "cache-control": "no-store" });
   }
   if (p === "/painel" || p === "/entrar" || p === "/cadastro") return htmlResponse(PAINEL, 200, { "cache-control": "no-store" });
+  if (p === "/solicitar" && !CORRIDAS) return Response.redirect(url.origin + "/motoristas", 302);
   if (p === "/solicitar" || p === "/motoristas" || p === "/mapa" || p === "/conta")
-    return htmlResponse(REDE.replace("/*CITY*/null", JSON.stringify(cityOf(env))), 200, { "cache-control": "no-store" });
+    return htmlResponse(REDE.replace("/*CITY*/null", JSON.stringify(cityOf(env))).replace("/*CORRIDAS*/false", String(CORRIDAS)), 200, { "cache-control": "no-store" });
   if (p === "/editar") {
     const me = await currentUser(env, req);
     if (!me) return Response.redirect(url.origin + "/painel", 302);
@@ -174,6 +177,7 @@ async function route(req, env) {
   if (p === "/api/app-versao" && m === "GET") return json(await appVersion(), 200, { "cache-control": "public, max-age=300" });
 
   // ---------- Chamado aberto (passageiro chama qualquer motorista online) ----------
+  if (!CORRIDAS && (p === "/api/preco" || p === "/api/chamar")) return json({ error: "Pedir corrida pelo app está desligado por enquanto." }, 410);
   if (p === "/api/preco" && m === "POST") {
     if (tooMany("preco" + ip(req), 40)) return json({ error: "Muitas consultas. Espere um pouco." }, 429);
     const b = await body(req), from = point(b.from), to = point(b.to);
@@ -292,6 +296,7 @@ async function renderProfile(env, user, url, edit = false) {
   // Modo edição: o dono do perfil mexe direto na página
   if (edit) { data.preview = true; data.edit = { profile: p, tags: TAGS, uid: user.id }; }
   data.owner = user.username === String(env.OWNER_USERNAME || "").toLowerCase();
+  data.corridas = CORRIDAS;
   const title = `${data.name} · Driver Hub`;
   const desc = data.modules.includes("musica") ? `Escolha a música da corrida com ${data.name}.` : `Perfil de ${data.name} no Driver Hub.`;
   const page = PERFIL
@@ -311,6 +316,7 @@ async function publicApi(req, env, url, username, action) {
   const who = ip(req);
 
   // Chamado: o passageiro chama este motorista pelo app
+  if (action === "chamar" && !CORRIDAS) return json({ error: "Pedir corrida pelo app está desligado por enquanto." }, 410);
   if (action === "chamar" && req.method === "POST") {
     if (tooMany("cham" + who, 5)) return json({ error: "Você já chamou. Espere a resposta do motorista." }, 429);
     const b = await body(req);
