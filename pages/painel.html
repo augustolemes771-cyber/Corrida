@@ -1483,14 +1483,15 @@ details.howto ol b{color:var(--fg)}
     if(ON.on||ON.pedindo) return;
     if(IOS&&!ON.locOk){
       ON.pedindo=true; if(!quiet) toast("Pegando sua localização…");
+      var gb=$("goBtn"), txt=gb.innerHTML; gb.innerHTML="Locali-<br>zando…"; gb.disabled=true;
       pedirLocalizacao().then(function(r){
-        ON.pedindo=false;
+        ON.pedindo=false; gb.innerHTML=txt; gb.disabled=false;
         if(r==="ok"){ ON.locOk=true; startOnline(quiet); }
         else { try{ localStorage.removeItem("online"); }catch(e){} if(!quiet||r==="negada") semLocalizacao(r); }
       });
       return;
     }
-    ON.on=true; ON.last=0; try{ localStorage.setItem("online","1"); }catch(e){}
+    ON.on=true; ON.last=Date.now(); try{ localStorage.setItem("online","1"); }catch(e){}
     renderOnline();
     if(!quiet){ chime(true); toast("Você está online"); }
     call("POST","/api/localizacao",{online:true});
@@ -1507,15 +1508,17 @@ details.howto ol b{color:var(--fg)}
   // "ok" com a primeira posição; "negada" sem permissão; "falhou" se o GPS não respondeu
   function pedirLocalizacao(){
     return new Promise(function(res){
-      var fim=false, fontes=0, nao=0, negou=false, wid=null; ON.diag=[];
+      var fim=false, fontes=0, nao=0, negou=false, wid=null, resp={}; ON.diag=[];
       function done(r,loc){ if(fim) return; fim=true; if(wid&&BG) try{ BG.removeWatcher({id:wid}); }catch(e){} if(loc) sendLoc(loc); res(r); }
       function falha(neg){ nao++; if(neg) negou=true; if(nao>=fontes) done(negou?"negada":"falhou"); }
-      setTimeout(function(){ done(negou?"negada":"falhou"); },25000);
+      // Até 40 s; no fim, anota quem não respondeu
+      setTimeout(function(){ if(BG&&!resp.app) ON.diag.push("app: sem resposta"); if(navigator.geolocation&&!resp.pg) ON.diag.push("página: sem resposta"); done(negou?"negada":"falhou"); },40000);
       if(BG){
         fontes++;
         try{
-          BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
+          BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:true,distanceFilter:0},
             function(loc,err){
+              resp.app=true;
               if(err){ ON.diag.push("app: "+(err.code||err.message||"erro")); falha(err.code==="NOT_AUTHORIZED"); }
               else if(loc) done("ok",{lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed});
             }).then(function(id){ wid=id; if(fim) try{ BG.removeWatcher({id:id}); }catch(e){} }).catch(function(e){ ON.diag.push("app: "+((e&&(e.code||e.message))||"falhou")); falha(false); });
@@ -1523,8 +1526,8 @@ details.howto ol b{color:var(--fg)}
       }
       if(navigator.geolocation){
         fontes++;
-        navigator.geolocation.getCurrentPosition(function(p){ done("ok",{lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed}); },
-          function(e){ ON.diag.push("página: "+({1:"negada",2:"sem sinal",3:"demorou"}[e.code]||e.code)); falha(e.code===1); },{enableHighAccuracy:true,timeout:20000,maximumAge:30000});
+        navigator.geolocation.getCurrentPosition(function(p){ resp.pg=true; done("ok",{lat:p.coords.latitude,lng:p.coords.longitude,acc:p.coords.accuracy,speed:p.coords.speed}); },
+          function(e){ resp.pg=true; ON.diag.push("página: "+({1:"negada",2:"sem sinal",3:"demorou"}[e.code]||e.code)); falha(e.code===1); },{enableHighAccuracy:false,timeout:30000,maximumAge:600000});
       }
       if(!BG) ON.diag.push("app: sem módulo de localização");
       if(!fontes) done("negada");
