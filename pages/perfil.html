@@ -187,7 +187,7 @@ footer a{color:var(--muted);text-underline-offset:3px}
 
 /* ---------- Barra do passageiro ---------- */
 body.has-nav{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
-.pnav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--panel);border-top:1px solid var(--line);
+.pnav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border-top:1px solid var(--line);
   padding:0 max(6px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(6px,env(safe-area-inset-left,0px))}
 .pnav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:62px;color:var(--muted);font-size:12px;font-weight:700;text-decoration:none}
 .pnav a svg{width:24px;height:24px}
@@ -1130,7 +1130,6 @@ body.editing .tabs{position:static}
     if(location.hash==="#perfil") select(1);
     try{ localStorage.setItem("ultimoMotorista",P.username); }catch(e){}
     document.body.classList.add("has-nav"); $("pnav").hidden=false;
-    if(!P.corridas) $("pnav").querySelector('a[href="/solicitar"]').remove();
     // Favoritar: com conta salva, sem conta convida a criar
     var fav=$("favBtn"); fav.hidden=false; var logged=false;
     fetch("/api/favoritos",{credentials:"same-origin"}).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(j){
@@ -1236,7 +1235,7 @@ body.editing .tabs{position:static}
   // Só no navegador do Android (no app já instalado não aparece)
   if(!EDIT&&/Android/i.test(navigator.userAgent)&&!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())) $("apkLink").hidden=false;
   if(P.preview&&!EDIT) document.addEventListener("click",function(e){ if(e.target.closest("a")) e.preventDefault(); },true);
-  if(!EDIT&&!demo&&!P.preview){ initPassenger(); if(P.corridas) initCall(); }
+  if(!EDIT&&!demo&&!P.preview){ initPassenger(); initCall(); }
   if(EDIT) document.addEventListener("click",function(e){ var a=e.target.closest("a"); if(a&&a.id!=="edExit") e.preventDefault(); },true);
 })();
 </script>

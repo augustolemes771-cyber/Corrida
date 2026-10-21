@@ -50,7 +50,7 @@ input::placeholder{color:var(--muted);opacity:.8}
 .btn:active{transform:scale(.98)}
 
 /* Barra de baixo */
-.pnav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--panel);border-top:1px solid var(--line);
+.pnav{position:fixed;left:0;right:0;bottom:0;z-index:1000;display:grid;grid-template-columns:repeat(4,1fr);background:var(--panel);border-top:1px solid var(--line);
   padding:0 max(6px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(6px,env(safe-area-inset-left,0px))}
 .pnav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:var(--nav);color:var(--muted);font-size:12px;font-weight:700;text-decoration:none}
 .pnav a svg{width:24px;height:24px}
@@ -253,7 +253,7 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
       <p class="hint">Tudo funciona sem conta. Criando uma, você ganha:</p>
     </header>
     <div class="benefits">
-      <div><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg><span><b>Motoristas favoritos</b><small>Salve quem você curtiu pra achar a página de novo.</small></span></div>
+      <div><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg><span><b>Motoristas favoritos</b><small>Salve quem você curtiu e chame de novo pelo WhatsApp.</small></span></div>
       <div><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.2a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.3"/></svg><span><b>Lugares salvos</b><small>Guarde os lugares do mapa que você quer visitar.</small></span></div>
       <div><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span><b>Suas músicas pedidas<span class="soon">em breve</span></b><small>A trilha das suas corridas, pra ouvir de novo.</small></span></div>
       <div><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9V6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v3a2 2 0 0 0 0 4v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a2 2 0 0 0 0-4zM10 5v14"/></svg><span><b>Cupons da cidade<span class="soon">em breve</span></b><small>Descontos de lugares parceiros.</small></span></div>
@@ -310,8 +310,7 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
   var CITY=/*CITY*/null || {name:"Caldas Novas",lat:-17.7441,lng:-48.625};
   var $=function(id){ return document.getElementById(id); };
   var esc=DHMap.esc;
-  var CORRIDAS=/*CORRIDAS*/false; // pedido de corrida desligado até legalizar
-  var view=location.pathname.slice(1)||(CORRIDAS?"solicitar":"motoristas");
+  var view=location.pathname.slice(1)||"solicitar";
   var me=null, favs=[];
 
   function call(method,url,data){
@@ -332,7 +331,6 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
   var THEME_ACC={noite:"#ffb347",grafite:"#e4ff5c",floresta:"#8be28f",vinho:"#ff6b86",oceano:"#3fd6ea",claro:"#d9480f"};
 
   // ---------- Barra ----------
-  if(!CORRIDAS) document.querySelector('.pnav a[data-v="solicitar"]').remove();
   document.querySelectorAll(".pnav a[data-v]").forEach(function(a){ if(a.dataset.v===view) a.setAttribute("aria-current","page"); });
 
   // ---------- Motoristas ----------
@@ -351,18 +349,16 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
   function renderDrivers(){
     var q=$("dq").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
     var list=drivers.filter(function(d){ return !q||(d.name+" "+d.username+" "+d.car).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").indexOf(q)>=0; });
-    // Sem pedido de corrida, não mostra quem está online (não é chamada de motorista)
-    var live=function(d){ return CORRIDAS&&d.online; };
-    list.sort(function(a,b){ return (live(b)?2:0)+(isFav("motorista",b.username)?1:0)-(live(a)?2:0)-(isFav("motorista",a.username)?1:0); });
-    var on=list.filter(live).length;
-    $("dcount").textContent=list.length+(list.length===1?" motorista":" motoristas")+(CORRIDAS?" · "+on+" online agora":"");
+    list.sort(function(a,b){ return (b.online?2:0)+(isFav("motorista",b.username)?1:0)-(a.online?2:0)-(isFav("motorista",a.username)?1:0); });
+    var on=list.filter(function(d){ return d.online; }).length;
+    $("dcount").textContent=list.length+(list.length===1?" motorista":" motoristas")+" · "+on+" online agora";
     $("drivers").innerHTML=list.length?list.map(function(d){
       var c=d.accent||THEME_ACC[d.preset]||"#ffb347";
       var ava=d.avatar?'<img class="dava" src="'+esc(d.avatar)+'" alt="" style="--c:'+c+'" loading="lazy">':'<div class="dava" style="--c:'+c+'" aria-hidden="true">'+esc(d.name.charAt(0).toUpperCase())+'</div>';
       var y=d.since?new Date().getFullYear()-Number(d.since):0;
       return '<article class="dcard">'+ava+'<div class="dinfo"><b>'+esc(d.name)+'</b><small>@'+esc(d.username)+(d.city?" · "+esc(d.city):"")+'</small>'+
         (d.car?'<span class="car">'+CAR+esc(d.car)+'</span>':'')+(y>0?'<small>Dirige há '+y+(y===1?" ano":" anos")+'</small>':'')+
-        (CORRIDAS?'<span class="live'+(d.online?' on">Online agora':'">Offline')+'</span>':'')+'</div>'+
+        '<span class="live'+(d.online?' on">Online agora':'">Offline')+'</span></div>'+
         '<div class="dacts"><button type="button" class="fav" data-u="'+esc(d.username)+'" aria-pressed="'+isFav("motorista",d.username)+'" aria-label="Favoritar '+esc(d.name)+'">'+HEART+'</button>'+
         '<a class="btn primary" href="/'+esc(d.username)+'#perfil">Ver página</a></div></article>';
     }).join(""):'<div class="empty">Nenhum motorista com esse nome.</div>';
@@ -625,13 +621,13 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
       call("POST","/api/chamado?id="+CALL.id+"&t="+encodeURIComponent(CALL.t)).then(function(){ CALL=null; saveCall(); closeCall(); });
     }
   });
-  if(CORRIDAS&&view!=="solicitar"&&CALL&&(CALL.status==="novo"||CALL.status==="aceito")) openCall();
+  if(view!=="solicitar"&&CALL&&(CALL.status==="novo"||CALL.status==="aceito")) openCall();
   // Botão voltar do Android: fecha o que estiver aberto; na tela Solicitar o app minimiza; senão volta a página anterior
   window.dhVoltar=function(){
     if(!$("callWrap").hidden){ closeCall(); return 1; }
     if(!$("placeSheet").hidden){ closePlace(); return 1; }
     if(!$("sSugs").hidden){ $("sSugs").hidden=true; return 1; }
-    return view===(CORRIDAS?"solicitar":"motoristas")?2:0;
+    return view==="solicitar"?2:0;
   };
 
   // ---------- Início ----------
@@ -646,7 +642,7 @@ label.f small{font-weight:500;color:var(--muted);font-size:13px}
       bar.lastChild.addEventListener("click",function(){ call("POST","/api/voltar-admin").then(function(){ location.href="/painel?c="+Date.now()+"#mais"; }); });
       document.body.prepend(bar);
     }
-    if(view==="mapa") initMap(); else if(view==="conta") initAccount(); else if(view==="motoristas"||!CORRIDAS) initDrivers(); else initSolicitar();
+    if(view==="mapa") initMap(); else if(view==="conta") initAccount(); else if(view==="motoristas") initDrivers(); else initSolicitar();
   });
 })();
 </script>
