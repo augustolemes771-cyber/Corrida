@@ -1474,7 +1474,11 @@ details.howto ol b{color:var(--fg)}
     // Andando: no máximo a cada 25 s. Parado: um sinal por minuto, pra não sumir do mapa.
     if(ON.pos&&(now-ON.last<25000||(now-ON.last<60000&&DHMap.distKm(ON.pos,p)<0.05))) return;
     ON.last=now; ON.pos=p;
-    fetch("/api/localizacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p),credentials:"same-origin",keepalive:true}).catch(function(){});
+    fetch("/api/localizacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p),credentials:"same-origin"}).catch(function(){});
+    // Seu "Você" no mapa anda junto, sem esperar o mapa recarregar
+    if(PS.drivers){ var eu=PS.drivers.filter(function(d){ return d.me; })[0];
+      if(eu){ eu.lat=p.lat; eu.lng=p.lng; eu.at=now; } else PS.drivers.push({me:true,lat:p.lat,lng:p.lng,at:now,name:S.saved.name||S.me.user.username,username:S.me.user.username});
+      if(dmap&&S.view==="mapa") drawMap(); }
   }
   // Ficar online: o servidor marca na hora; a localização vem depois. Se o GPS falhar, continua online e avisa.
   // iPhone: só fica online com a localização ligada. Pede a permissão (janela do iOS) e espera a primeira posição.

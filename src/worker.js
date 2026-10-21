@@ -541,7 +541,9 @@ async function driverApi(req, env, url, p, me, secure) {
       const c = cityOf(env);
       await env.DB.prepare(
         `INSERT INTO driver_locations(user_id,lat,lng,acc,speed,at,online) VALUES(?,?,?,-1,NULL,?,1)
-         ON CONFLICT(user_id) DO UPDATE SET at=excluded.at,online=1`
+         ON CONFLICT(user_id) DO UPDATE SET online=1,
+           acc=CASE WHEN driver_locations.at<excluded.at-600000 THEN -1 ELSE driver_locations.acc END,
+           at=excluded.at`
       ).bind(me.id, c.lat, c.lng, now).run();
       return json({ ok: true });
     }
