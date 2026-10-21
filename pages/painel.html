@@ -1506,6 +1506,8 @@ details.howto ol b{color:var(--fg)}
     toast(msg||"Você está online, mas sem localização. Libere a localização pro Driver Hub.");
   }
   // "ok" com a primeira posição; "negada" sem permissão; "falhou" se o GPS não respondeu
+  // O plugin no iPhone devolve o id do rastreador direto (não uma promessa); aceita os dois jeitos
+  function bgWatch(opts,cb){ try{ return Promise.resolve(BG.addWatcher(opts,cb)); }catch(e){ return Promise.reject(e); } }
   function pedirLocalizacao(){
     return new Promise(function(res){
       var fim=false, fontes=0, nao=0, negou=false, wid=null, resp={}; ON.diag=[];
@@ -1516,7 +1518,7 @@ details.howto ol b{color:var(--fg)}
       if(BG){
         fontes++;
         try{
-          BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:true,distanceFilter:0},
+          bgWatch({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:true,distanceFilter:0},
             function(loc,err){
               resp.app=true;
               if(err){ ON.diag.push("app: "+(err.code||err.message||"erro")); falha(err.code==="NOT_AUTHORIZED"); }
@@ -1555,7 +1557,7 @@ details.howto ol b{color:var(--fg)}
         else semGps(e&&e.message);
       });
     } else if(NATIVE&&BG){
-      BG.addWatcher({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
+      bgWatch({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
         function(loc,err){
           if(err){ gpsDaPagina(err.code==="NOT_AUTHORIZED"); return; }
           if(loc) sendLoc({lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed});
