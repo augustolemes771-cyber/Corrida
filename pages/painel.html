@@ -254,6 +254,10 @@ body.as .hmenu,body.as .hqr,body.as .hpill{top:calc(var(--ash) + 14px + env(safe
 .accrow small{display:block;color:var(--muted);font-size:13px}
 .accacts{display:flex;flex-wrap:wrap;gap:8px}
 
+/* Seu carro ao vivo no mapa (seta que aponta pra onde você vai) */
+.live-car{position:absolute;left:-23px;top:-23px;width:46px;height:46px;border-radius:50%;background:#111;border:3px solid #fff;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+.live-car svg{width:22px;height:22px;fill:#fff;transition:transform .4s ease-out}
+
 /* Menu lateral */
 .mtop{border:0;background:none;color:var(--fg);width:40px;height:40px;display:grid;place-items:center;padding:0;margin-left:-6px}
 .mtop svg.i{width:26px;height:26px}
@@ -1120,15 +1124,12 @@ details.howto ol b{color:var(--fg)}
     var c=HC.indo; document.body.classList.toggle("trip",!!c); $("trip").hidden=!c;
     if(!c){
       if(TRIP.layer) TRIP.layer.clearLayers(); clearInterval(TRIP.timer); TRIP.timer=null; TRIP.id=null; TRIP.desenhado=null;
-      if(TRIP.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(TRIP.watch); TRIP.watch=null; TRIP.pos=null;
-      if(TRIP.tinha){ TRIP.tinha=false; drawMap(); }
+      TRIP.rotaDe=null;
+      if(TRIP.tinha){ TRIP.tinha=false; drawMap(); stopLive(); }
       return;
     }
-    // Acompanha sua posição enquanto a corrida durar; a primeira posição já desenha a rota
-    if(TRIP.watch==null&&navigator.geolocation) TRIP.watch=navigator.geolocation.watchPosition(function(p){
-      var primeira=!TRIP.pos; TRIP.pos={lat:p.coords.latitude,lng:p.coords.longitude};
-      if(primeira){ TRIP.desenhado=null; drawTrip(); }
-    },function(){},{enableHighAccuracy:true,maximumAge:10000});
+    // Acompanha sua posição enquanto a corrida durar (o carro ao vivo); a primeira posição já desenha a rota
+    startLive();
     if(TRIP.id!==c.id){ TRIP.id=c.id; TRIP.etapa=lsGet("etapa"+c.id,"buscar"); TRIP.desenhado=null; TRIP.tinha=true; drawMap(); }
     var dest=TRIP.etapa==="destino";
     $("tpStage").textContent=dest?"Levando até o destino":"Indo buscar";
@@ -1158,7 +1159,7 @@ details.howto ol b{color:var(--fg)}
       if(c.lat!=null) L.marker([c.lat,c.lng],{icon:ofIcon("of-pin",'<svg viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="4"/><path d="M4 21a8 8 0 0 1 16 0z"/></svg>'),zIndexOffset:900}).addTo(TRIP.layer);
       if(c.dest_lat!=null) L.marker([c.dest_lat,c.dest_lng],{icon:ofIcon("of-end"),zIndexOffset:800}).addTo(TRIP.layer);
       if(!me||!alvo){ $("tpEta").textContent=alvo?"Sem sua localização":""; if(alvo&&!refresh) dmap.setView([alvo.lat,alvo.lng],15); return; }
-      DHMap.carMarker(me.lat,me.lng).addTo(TRIP.layer);
+      TRIP.rotaDe={lat:me.lat,lng:me.lng};
       DHMap.route(me,alvo).then(function(r){
         if(!HC.indo||HC.indo.id!==c.id) return;
         ofRoute(r.coords,TRIP.layer);
@@ -1471,14 +1472,49 @@ details.howto ol b{color:var(--fg)}
   var ON={on:false,watch:null,last:0,pos:null};
   function sendLoc(p){
     var now=Date.now();
-    // Andando: no máximo a cada 25 s. Parado: um sinal por minuto, pra não sumir do mapa.
-    if(ON.pos&&(now-ON.last<25000||(now-ON.last<60000&&DHMap.distKm(ON.pos,p)<0.05))) return;
-    ON.last=now; ON.pos=p;
-    fetch("/api/localizacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p),credentials:"same-origin"}).catch(function(){});
-    // Seu "Você" no mapa anda junto, sem esperar o mapa recarregar
-    if(PS.drivers){ var eu=PS.drivers.filter(function(d){ return d.me; })[0];
-      if(eu){ eu.lat=p.lat; eu.lng=p.lng; eu.at=now; } else PS.drivers.push({me:true,lat:p.lat,lng:p.lng,at:now,name:S.saved.name||S.me.user.username,username:S.me.user.username});
-      if(dmap&&S.view==="mapa") drawMap(); }
+    // Pro servidor (passageiros e outros motoristas): andando a cada 10 s, parado um sinal por minuto
+    if(!ON.on&&!HC.indo) return;
+    if(ON.pos&&(now-ON.last<10000||(now-ON.last<60000&&DHMap.distKm(ON.pos,p)<0.03))) return;
+    ON.last=now; ON.pos={lat:p.lat,lng:p.lng,acc:p.acc,speed:p.speed};
+    fetch("/api/localizacao",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(ON.pos),credentials:"same-origin"}).catch(function(){});
+  }
+  // ----- Seu carro ao vivo: cada leitura do GPS move o carro na hora, deslizando, e o mapa acompanha -----
+  var LIVE={mk:null,pos:null,head:0,follow:true,watch:null,anim:null};
+  function rumo(a,b){ var r=Math.PI/180, y=Math.sin((b.lng-a.lng)*r)*Math.cos(b.lat*r), x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lng-a.lng)*r); return (Math.atan2(y,x)/r+360)%360; }
+  function onPos(p){
+    if(!p||!isFinite(p.lat)||!isFinite(p.lng)) return;
+    var prev=LIVE.pos; LIVE.pos={lat:p.lat,lng:p.lng}; TRIP.pos=LIVE.pos; here=LIVE.pos;
+    if(p.heading!=null&&isFinite(p.heading)&&p.speed>1) LIVE.head=p.heading; else if(prev&&DHMap.distKm(prev,p)>0.004) LIVE.head=rumo(prev,p);
+    drawLive(prev);
+    sendLoc(p);
+    // Na corrida, refaz a rota quando andou 150 m (a primeira posição já desenha)
+    if(HC.indo&&(!TRIP.rotaDe||DHMap.distKm(TRIP.rotaDe,p)>0.15)){ var primeira=!TRIP.rotaDe; TRIP.desenhado=null; drawTrip(!primeira); }
+  }
+  function drawLive(prev){
+    if(!dmap||!LIVE.pos) return;
+    var to=LIVE.pos;
+    if(!LIVE.mk){
+      LIVE.mk=L.marker([to.lat,to.lng],{zIndexOffset:1000,interactive:false,icon:L.divIcon({className:"",iconSize:[0,0],html:'<div class="live-car"><svg viewBox="0 0 24 24"><path d="M12 2l7 18-7-4-7 4z"/></svg></div>'})}).addTo(dmap);
+      if(LIVE.follow&&S.view==="mapa"&&!HC.indo) dmap.setView([to.lat,to.lng],Math.max(dmap.getZoom(),16));
+      drawMap();
+    } else {
+      // Desliza do ponto anterior até o novo em ~0,8 s
+      var from=LIVE.mk.getLatLng(), t0=performance.now(); cancelAnimationFrame(LIVE.anim);
+      (function passo(t){ var k=Math.min(1,(t-t0)/800); LIVE.mk.setLatLng([from.lat+(to.lat-from.lat)*k,from.lng+(to.lng-from.lng)*k]); if(k<1) LIVE.anim=requestAnimationFrame(passo); })(t0);
+      if(LIVE.follow&&S.view==="mapa") dmap.panTo([to.lat,to.lng],{animate:true,duration:.8});
+    }
+    var el=LIVE.mk.getElement(); if(el){ var sv=el.querySelector("svg"); if(sv) sv.style.transform="rotate("+LIVE.head+"deg)"; }
+  }
+  // GPS com a tela aberta (Android e iPhone): alimenta o carro ao vivo enquanto estiver online ou numa corrida
+  function startLive(){
+    if(LIVE.watch!=null||!navigator.geolocation) return;
+    LIVE.watch=navigator.geolocation.watchPosition(function(q){ onPos({lat:q.coords.latitude,lng:q.coords.longitude,acc:q.coords.accuracy,speed:q.coords.speed,heading:q.coords.heading}); },
+      function(){},{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+  }
+  function stopLive(){
+    if(ON.on||HC.indo) return;
+    if(LIVE.watch!=null&&navigator.geolocation) navigator.geolocation.clearWatch(LIVE.watch); LIVE.watch=null;
+    if(LIVE.mk){ LIVE.mk.remove(); LIVE.mk=null; } LIVE.pos=null; if(dmap) drawMap();
   }
   // Ficar online: o servidor marca na hora; a localização vem depois. Se o GPS falhar, continua online e avisa.
   // iPhone: só fica online com a localização ligada. Pede a permissão (janela do iOS) e espera a primeira posição.
@@ -1502,6 +1538,7 @@ details.howto ol b{color:var(--fg)}
     clearInterval(ON.beat);
     ON.beat=setInterval(function(){ if(ON.on&&Date.now()-ON.last>4*60000) call("POST","/api/localizacao",{online:true}); },5*60000);
     try{ startTracking(); }catch(e){ semGps(); }
+    startLive();
   }
   function semGps(msg){
     if(!ON.on) return;
@@ -1515,7 +1552,7 @@ details.howto ol b{color:var(--fg)}
   function pedirLocalizacao(){
     return new Promise(function(res){
       var fim=false, fontes=0, nao=0, negou=false, wid=null, resp={}; ON.diag=[];
-      function done(r,loc){ if(fim) return; fim=true; if(wid&&BG) try{ BG.removeWatcher({id:wid}); }catch(e){} if(loc) sendLoc(loc); res(r); }
+      function done(r,loc){ if(fim) return; fim=true; if(wid&&BG) try{ BG.removeWatcher({id:wid}); }catch(e){} if(loc) onPos(loc); res(r); }
       function falha(neg){ nao++; if(neg) negou=true; if(nao>=fontes) done(negou?"negada":"falhou"); }
       // Até 40 s; no fim, anota quem não respondeu
       setTimeout(function(){ if(BG&&!resp.app) ON.diag.push("app: sem resposta"); if(navigator.geolocation&&!resp.pg) ON.diag.push("página: sem resposta"); done(negou?"negada":"falhou"); },40000);
@@ -1564,10 +1601,10 @@ details.howto ol b{color:var(--fg)}
       bgWatch({backgroundTitle:"Driver Hub online",backgroundMessage:"Sua localização aparece pros motoristas do Driver Hub.",requestPermissions:true,stale:false,distanceFilter:0},
         function(loc,err){
           if(err){ gpsDaPagina(err.code==="NOT_AUTHORIZED"); return; }
-          if(loc) sendLoc({lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed});
+          if(loc) onPos({lat:loc.latitude,lng:loc.longitude,acc:loc.accuracy,speed:loc.speed,heading:loc.bearing});
         }).then(function(id){ ON.watch=id; }).catch(function(){ gpsDaPagina(false); });
     } else if(navigator.geolocation){
-      ON.watch=navigator.geolocation.watchPosition(function(pos){ sendLoc({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,speed:pos.coords.speed}); },
+      ON.watch=navigator.geolocation.watchPosition(function(pos){ onPos({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,speed:pos.coords.speed,heading:pos.coords.heading}); },
         function(e){ if(e.code===1) semGps("Você está online, mas sem localização. Libere a localização nas configurações do navegador."); },
         {enableHighAccuracy:true,maximumAge:15000,timeout:30000});
     } else semGps();
@@ -1577,7 +1614,7 @@ details.howto ol b{color:var(--fg)}
   function gpsDaPagina(negou){
     if(!ON.on||ON.watchPg!=null) return;
     if(!navigator.geolocation){ if(negou&&Date.now()-ON.last>120000) semGps(); return; }
-    ON.watchPg=navigator.geolocation.watchPosition(function(pos){ sendLoc({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,speed:pos.coords.speed}); },
+    ON.watchPg=navigator.geolocation.watchPosition(function(pos){ onPos({lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy,speed:pos.coords.speed,heading:pos.coords.heading}); },
       function(e){ if(e.code===1&&negou&&Date.now()-ON.last>120000) semGps(); },{enableHighAccuracy:true,maximumAge:15000,timeout:30000});
   }
   function stopOnline(){
@@ -1586,7 +1623,7 @@ details.howto ol b{color:var(--fg)}
     clearInterval(ON.beat);
     var was=ON.on; ON.watch=null; ON.on=false; ON.pos=null; try{ localStorage.removeItem("online"); }catch(e){}
     if(was){ call("POST","/api/localizacao",{online:false}); chime(false); }
-    renderOnline();
+    renderOnline(); stopLive();
   }
   // Som curto e limpo: duas notas suaves, subindo (online) ou descendo (offline)
   var actx=null;
@@ -1732,6 +1769,9 @@ details.howto ol b{color:var(--fg)}
     if(typeof L==="undefined"||typeof DHMap==="undefined"){ setTimeout(function(){ showMap(focus); },200); return; }
     if(!dmap){
       dmap=DHMap.create($("dmap"),PS.city||S.me.city,{zoom:14}); dlayer=L.layerGroup().addTo(dmap);
+      // Arrastou o mapa: para de seguir o carro (o botão de localização volta a seguir)
+      dmap.on("dragstart",function(){ LIVE.follow=false; });
+      if(LIVE.pos) setTimeout(function(){ drawLive(); },0);
       renderLayerRow(); renderFuelRows();
       // Online: abre já centrado em você, como nos apps de corrida
       if(ON.on&&!HC.indo) locate(function(){ meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); });
@@ -1749,7 +1789,7 @@ details.howto ol b{color:var(--fg)}
       DHMap.marker(p,{fuel:FUEL,best:best&&best.id}).on("click",function(e){ L.DomEvent.stopPropagation(e); if(!picking) openPlace(p); }).addTo(dlayer);
     });
     if(!hidden.motoristas) (PS.drivers||[]).forEach(function(d){
-      if(d.me&&HC.indo) return; // na corrida, você é o carro da rota
+      if(d.me&&(HC.indo||LIVE.pos)) return; // com GPS ao vivo, você é o carro (seta)
       var face=d.avatar?'<img src="'+DHMap.esc(d.avatar)+'" alt="">':DHMap.esc((d.name||"?").charAt(0).toUpperCase());
       var icon=L.divIcon({className:"",iconSize:[0,0],html:'<div class="dh-drv'+(d.me?" me":"")+'"><span class="face">'+face+'</span><span class="nm">'+(d.me?"Você":DHMap.esc(d.name))+'</span></div>'});
       L.marker([d.lat,d.lng],{icon:icon,zIndexOffset:500,title:d.name}).on("click",function(e){ L.DomEvent.stopPropagation(e); if(!picking) openDriver(d); }).addTo(dlayer);
@@ -1761,7 +1801,9 @@ details.howto ol b{color:var(--fg)}
       '<div class="pc-acts">'+(d.whatsapp&&!d.me?'<a class="pc-btn wa" href="https://wa.me/'+E(d.whatsapp)+'" target="_blank" rel="noopener">WhatsApp</a>':'')+'<a class="pc-btn" href="/'+E(d.username)+'#perfil" target="_blank" rel="noopener">Ver página</a></div>';
     openSheet("Motorista",h);
   }
-  $("locBtn").addEventListener("click",function(){ locate(function(){ if(meDot) meDot.remove(); meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); }); });
+  $("locBtn").addEventListener("click",function(){
+    LIVE.follow=true; if(LIVE.pos){ dmap.setView([LIVE.pos.lat,LIVE.pos.lng],Math.max(dmap.getZoom(),16)); return; }
+    locate(function(){ if(meDot) meDot.remove(); meDot=DHMap.meMarker(here.lat,here.lng).addTo(dmap); dmap.setView([here.lat,here.lng],15); }); });
   function startPick(state){
     picking=state; closeSheet();
     if(S.view!=="mapa"){ go("mapa"); }
